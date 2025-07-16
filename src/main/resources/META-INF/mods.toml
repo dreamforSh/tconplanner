@@ -1,0 +1,35 @@
+# The overall format is standard TOML format, v0.5.0.
+# https://github.com/toml-lang/toml
+modLoader="javafml" #mandatory
+loaderVersion="[43,)" #mandatory This is typically bumped every Minecraft version by Forge. See our download page for lists of versions.
+license="MIT License"
+#issueTrackerURL="https://change.me.to.your.issue.tracker.example.invalid/" #optional
+[[mods]] #mandatory
+modId="tconplanner" #mandatory
+version="1.2.0" #mandatory
+displayName="Tinker's Planner" #mandatory
+#updateJSONURL="https://change.me.example.invalid/updates.json" #optional
+#displayURL="https://change.me.to.your.mods.homepage.example.invalid/" #optional
+logoFile="logo.png" #optional
+#credits="Thanks for this example mod goes to Java" #optional
+authors="Tiffit, SpikyStars xinian" #optional
+# The description text for the mod (multi line!) (#mandatory)
+description="Tinker's Planner is a client-side mod which allows you to try out different material combinations for tools before actually making the tool."
+[[dependencies.tconplanner]] #optional
+    modId="forge" #mandatory
+    mandatory=true #mandatory
+    versionRange="[43,)" #mandatory
+    ordering="NONE"
+    side="BOTH"
+[[dependencies.tconplanner]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.19.2,1.19.3)"
+    ordering="NONE"
+    side="BOTH"
+[[dependencies.tconplanner]]
+    modId="tconstruct" #mandatory
+    mandatory=true #mandatory
+    versionRange="[3.8.4.50,)" #mandatory
+    side="CLIENT"
+
