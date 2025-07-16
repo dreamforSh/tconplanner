@@ -1,8 +1,8 @@
 {
   "gui.tconplanner.plannerbutton": "打开蓝图",
-  "gui.tconplanner.importtool": "将工具部件导入规划器",
+  "gui.tconplanner.importtool": "将工具部件导入蓝图",
   "gui.tconplanner.name": "匠魂蓝图",
-  "gui.tconplanner.notool": "选择工具",
+  "gui.tconplanner.no_tool_selected": "选择工具",
   "gui.tconplanner.banner.tools": "工具列表",
   "gui.tconplanner.banner.bookmarked": "已收藏",
   "gui.tconplanner.banner.modifiers": "修改器",
@@ -17,20 +17,21 @@
   "gui.tconplanner.star.move": "点击将部件移至工作站",
   "gui.tconplanner.giveitem": "给予物品",
   "gui.tconplanner.randomize": "随机化材料",
-  "gui.tconplanner.slots.available": "可用槽位：%1$s个",
+  "gui.tconplanner.slots.available": "可用槽位：%1$s",
   "gui.tconplanner.modifiers.error.incrementnotmax": "新增等级前需将当前等级升至最高",
   "gui.tconplanner.modifiers.error.minlevel": "等级已达最低",
   "gui.tconplanner.modifiers.addcreativeslot": "左键点击添加创造模式槽位",
   "gui.tconplanner.modifiers.removecreativeslot": "右键点击移除创造模式槽位",
   "gui.tconplanner.modifiers.exit": "返回",
-  "gui.tconplanner.modifiers.usedslot": "占用%1$s个槽位",
-  "gui.tconplanner.modifiers.usedslots": "占用%1$s个%2$s槽位",
+  "gui.tconplanner.modifiers.usedslot": "占用1个%1$s槽位",
+  "gui.tconplanner.modifiers.usedslots": "占用1个%1$s%2$s槽位",
   "gui.tconplanner.modifiers.addlevel": "新增等级",
   "gui.tconplanner.modifiers.removelevel": "移除等级",
-  "gui.tconplanner.editmodifierstack": "编辑「修改器堆栈」",
+  "gui.tconplanner.editmodifierstack": "编辑「槽位个数」",
   "gui.tconplanner.modifierstack.cancel": "取消",
   "gui.tconplanner.modifierstack.save": "保存",
   "gui.tconplanner.modifierstack.moveup": "上移",
   "gui.tconplanner.modifierstack.movedown": "下移",
-  "gui.tconplanner.parts.modifier_descriptions": "按住%1$s查看修改器说明"
+  "gui.tconplanner.parts.modifier_descriptions": "按住%1$s查看词条说明"
+
 }

@@ -1,6 +1,7 @@
 package com.xinian.tconplanner.util;
 
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.NotNull;
 import slimeknights.tconstruct.library.recipe.material.MaterialRecipe;
 import slimeknights.tconstruct.library.recipe.tinkerstation.ITinkerStationContainer;
 
@@ -15,12 +16,12 @@ public class DummyTinkersStationInventory implements ITinkerStationContainer {
     }
 
     @Override
-    public ItemStack getTinkerableStack() {
+    public @NotNull ItemStack getTinkerableStack() {
         return stack;
     }
 
     @Override
-    public ItemStack getInput(int i) {
+    public @NotNull ItemStack getInput(int i) {
         return ItemStack.EMPTY;
     }
 

@@ -1,5 +1,7 @@
 package com.xinian.tconplanner.data;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -72,7 +74,8 @@ public class Blueprint implements Cloneable {
                     stack.getPersistentData().addSlots(info.count.type(), -info.count.count());
                 }
             }
-            modStack.applyIncrementals(stack);
+
+            modStack.applyIncrements(stack);
         }
         stack.rebuildStats();
         return stack.createStack();
@@ -108,14 +111,14 @@ public class Blueprint implements Cloneable {
     }
 
 
-    public RecipeResult<ItemStack> validate() {
+    public RecipeResult<?> validate() {
         ToolStack ts = ToolStack.from(createOutput(false));
-        RecipeResult<ItemStack> result = null;
-
+        RecipeResult<?> result = null;
+        RegistryAccess registryAccess = Minecraft.getInstance().level.registryAccess();
         for (ModifierInfo info : modStack.getStack()) {
             IDisplayModifierRecipe recipe = info.recipe;
-            // <<-- 变更点 3: 移除多余的 registryAccess 参数，只传递一个参数
-            RecipeResult<ItemStack> rs = ((ITinkerStationRecipe) recipe).getValidatedResult(new DummyTinkersStationInventory(ts.createStack()));
+
+            RecipeResult<?> rs = ((ITinkerStationRecipe) recipe).getValidatedResult(new DummyTinkersStationInventory(ts.createStack()),registryAccess);
             if (rs.hasError()) {
                 result = rs;
                 break;

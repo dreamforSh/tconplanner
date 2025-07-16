@@ -1,13 +1,14 @@
 package com.xinian.tconplanner.screen.buttons;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
 import com.xinian.tconplanner.screen.PlannerScreen;
 import com.xinian.tconplanner.util.TextPosEnum;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
 import java.util.List;
@@ -15,7 +16,7 @@ import java.util.List;
 public class TooltipTextWidget extends AbstractWidget {
 
     private final PlannerScreen parent;
-    private int color = 0xff_ff_ff_ff;
+    private int color = 0xffffffff;
     private final Font font;
     private final List<Component> tooltip;
 
@@ -33,11 +34,13 @@ public class TooltipTextWidget extends AbstractWidget {
         super(x, y, 0, 0, text);
         this.parent = parent;
         this.tooltip = tooltip;
-        font = Minecraft.getInstance().font;
-        setWidth(font.width(text));
-        setHeight(font.lineHeight);
+        this.font = Minecraft.getInstance().font;
+        this.setWidth(this.font.width(text));
+        this.setHeight(this.font.lineHeight);
+
+        // 1. 使用 setX() 和 getX() 来修改坐标
         if(pos == TextPosEnum.CENTER){
-            this.x -= getWidth()/2;
+            this.setX(this.getX() - this.getWidth() / 2);
         }
     }
 
@@ -51,32 +54,39 @@ public class TooltipTextWidget extends AbstractWidget {
         return this;
     }
 
+
     @Override
-    public void renderButton(PoseStack stack, int mouseX, int mouseY, float p_230431_4_) {
-        drawString(stack, font, getMessage(), x, y, color);
-        if(isHoveredOrFocused()){
-            renderToolTip(stack, mouseX, mouseY);
+    public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+
+        guiGraphics.drawString(this.font, getMessage(), this.getX(), this.getY(), this.color);
+
+
+        if(this.isHoveredOrFocused()){
+
+            parent.postRenderTasks.add(() -> parent.renderComponentTooltip(guiGraphics, tooltip, mouseX, mouseY));
         }
     }
 
-    @Override
-    public void renderToolTip(PoseStack stack, int mouseX, int mouseY) {
-        parent.postRenderTasks.add(() -> parent.renderComponentTooltip(stack, tooltip, mouseX, mouseY));
-    }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int mouseButton) {
         if (this.active && this.visible) {
+
             return clicked(mouseX, mouseY) && onClick != null && onClick.onClick(mouseX, mouseY, mouseButton);
         } else {
             return false;
         }
     }
 
-    @Override
-    public void updateNarration(NarrationElementOutput p_169152_) {}
 
-    public static interface IOnTooltipTextWidgetClick {
+    public interface IOnTooltipTextWidgetClick {
         boolean onClick(double mouseX, double mouseY, int mouseButton);
+    }
+
+
+    @Override
+    protected void updateWidgetNarration(@NotNull NarrationElementOutput narrationElementOutput) {
+         //this.defaultButtonNarrationText(narrationElementOutput)
+
     }
 }

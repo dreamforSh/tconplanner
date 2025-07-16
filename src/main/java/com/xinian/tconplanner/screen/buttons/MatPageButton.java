@@ -1,24 +1,37 @@
 package com.xinian.tconplanner.screen.buttons;
 
-import com.mojang.blaze3d.vertex.PoseStack;
+import com.xinian.tconplanner.screen.PlannerScreen;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
-import com.xinian.tconplanner.screen.PlannerScreen;
+import org.jetbrains.annotations.NotNull;
 
-public class MatPageButton extends Button
-        {
-private final boolean right;
-private final PlannerScreen parent;
-public MatPageButton(int x, int y, int change, PlannerScreen parent) {
-    super(x, y, 38, 20, Component.literal(""), button -> {parent.materialPage += change; parent.refresh();});  // 变更：new TextComponent("") -> Component.literal("")
-    right = change > 0;
-    this.parent = parent;
-}
+public class MatPageButton extends Button {
+    private final boolean right;
 
-@Override
-public void renderButton(PoseStack stack, int mouseX, int mouseY, float p_230431_4_) {
-    PlannerScreen.bindTexture();
-    parent.blit(stack, x, y, right ? 176 : 214, active ? 20 : 0, width, height);
-}
+    public MatPageButton(int x, int y, int change, PlannerScreen parent) {
+        super(x, y, 38, 20, Component.literal(""), button -> {
+            parent.materialPage += change;
+            parent.refresh();
+        }, DEFAULT_NARRATION);
+        this.right = change > 0;
+    }
 
+    @Override
+    public void renderWidget(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+
+        int u = this.right ? 176 : 214;
+        int v = this.active ? 20 : 0;
+
+
+        guiGraphics.blit(
+                PlannerScreen.TEXTURE,
+                this.getX(),
+                this.getY(),
+                u,
+                v,
+                this.width,
+                this.height
+        );
+    }
 }

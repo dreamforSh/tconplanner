@@ -1,8 +1,7 @@
 package com.xinian.tconplanner.screen.buttons;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import com.xinian.tconplanner.api.TCTool;
 import com.xinian.tconplanner.screen.PlannerScreen;
@@ -15,26 +14,41 @@ public class ToolTypeButton extends Button {
     private final PlannerScreen parent;
 
     public ToolTypeButton(int index, TCTool tool, PlannerScreen parent) {
-        super(0, 0, 18, 18, tool.getDescription(), button -> parent.setSelectedTool(index));
+
+        super(0, 0, 18, 18, tool.getDescription(), button -> parent.setSelectedTool(index), DEFAULT_NARRATION);
         this.tool = tool;
         this.index = index;
         this.parent = parent;
         this.selected = parent.blueprint != null && tool == parent.blueprint.tool;
     }
 
-    @Override
-    public void renderButton(PoseStack stack, int mouseX, int mouseY, float p_230431_4_) {
-        PlannerScreen.bindTexture();
-        RenderSystem.enableBlend();
-        parent.blit(stack, x, y, 213, 41 + (selected ? 18 : 0), 18, 18);
-        Minecraft.getInstance().getItemRenderer().renderGuiItem(tool.getRenderTool(), x + 1, y + 1);
-        if(isHovered){
-            renderToolTip(stack, mouseX, mouseY);
-        }
-    }
 
     @Override
-    public void renderToolTip(PoseStack stack, int mouseX, int mouseY) {
-        parent.postRenderTasks.add(() -> parent.renderItemTooltip(stack, tool.getRenderTool(), mouseX, mouseY));
+    public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+
+        RenderSystem.enableBlend();
+
+
+        guiGraphics.blit(
+                PlannerScreen.TEXTURE,
+                this.getX(),
+                this.getY(),
+                213,
+                41 + (selected ? 18 : 0),
+                18,
+                18
+        );
+
+
+        guiGraphics.renderItem(tool.getRenderTool(), this.getX() + 1, this.getY() + 1);
+
+
+        if(isHoveredOrFocused()){
+
+            parent.postRenderTasks.add(() -> parent.renderItemTooltip(guiGraphics, tool.getRenderTool(), mouseX, mouseY));
+        }
+
+        RenderSystem.disableBlend();
     }
+
 }
