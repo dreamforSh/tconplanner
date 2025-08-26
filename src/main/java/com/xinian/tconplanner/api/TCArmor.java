@@ -2,10 +2,12 @@ package com.xinian.tconplanner.api;
 
 import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import slimeknights.tconstruct.TConstruct;
 import slimeknights.tconstruct.common.TinkerTags;
 import slimeknights.tconstruct.library.tools.definition.ToolDefinition;
 import slimeknights.tconstruct.library.tools.definition.module.material.ToolPartsHook;
@@ -15,6 +17,7 @@ import slimeknights.tconstruct.library.tools.layout.LayoutSlot;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class TCArmor implements IPlannable {
     private static List<TCArmor> ALL_ARMORS = null;
@@ -23,6 +26,17 @@ public class TCArmor implements IPlannable {
     private final ToolDefinition definition;
     private final EquipmentSlot equipmentSlot;
     private final ItemStack renderArmor;
+
+    private static final Set<ResourceLocation> ARMOR_BLACKLIST = Set.of(
+            ResourceLocation.fromNamespaceAndPath(TConstruct.MOD_ID, "slime_helmet"),
+            ResourceLocation.fromNamespaceAndPath(TConstruct.MOD_ID, "slime_chestplate"),
+            ResourceLocation.fromNamespaceAndPath(TConstruct.MOD_ID, "slime_leggings"),
+            ResourceLocation.fromNamespaceAndPath(TConstruct.MOD_ID, "slime_boots"),
+            ResourceLocation.fromNamespaceAndPath(TConstruct.MOD_ID, "travelers_helmet"),
+            ResourceLocation.fromNamespaceAndPath(TConstruct.MOD_ID, "travelers_chestplate"),
+            ResourceLocation.fromNamespaceAndPath(TConstruct.MOD_ID, "travelers_leggings"),
+            ResourceLocation.fromNamespaceAndPath(TConstruct.MOD_ID, "travelers_boots")
+    );
 
     private TCArmor(Item item, EquipmentSlot equipmentSlot) {
         if (!(item instanceof IModifiable)) {
@@ -93,7 +107,8 @@ public class TCArmor implements IPlannable {
     private static void findArmorsForSlot(List<TCArmor> armorList, EquipmentSlot slot, TagKey<Item> tag) {
         Registry.ITEM.getTagOrEmpty(tag).forEach(itemHolder -> {
             Item item = itemHolder.value();
-            if (item instanceof IModifiable) {
+            ResourceLocation id = Registry.ITEM.getKey(item);
+            if (item instanceof IModifiable && !ARMOR_BLACKLIST.contains(id)) {
                 armorList.add(new TCArmor(item, slot));
             }
         });
