@@ -51,7 +51,7 @@ public class SliderWidget extends AbstractWidget {
     }
 
     @Override
-    protected void onDrag(double mx, double my, double dx, double dy) {
+    public void onDrag(double mx, double my, double dx, double dy) {
         if(mx >= x - 5 && my >= y && mx <= x + width + 5 && my <= y + width) {
             updateVal(mx);
         }

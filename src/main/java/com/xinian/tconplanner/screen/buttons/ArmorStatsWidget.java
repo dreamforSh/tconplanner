@@ -39,7 +39,7 @@ public class ArmorStatsWidget extends PlannerPanelWidget {
     }
 
     @Override
-    protected void renderBg(@NotNull PoseStack pPoseStack, @NotNull Minecraft pMinecraft, int pMouseX, int pMouseY) {
+    public void renderBg(@NotNull PoseStack pPoseStack, @NotNull Minecraft pMinecraft, int pMouseX, int pMouseY) {
 
     }
 

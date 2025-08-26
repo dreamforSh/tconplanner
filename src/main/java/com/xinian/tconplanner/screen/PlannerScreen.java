@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.Component;
@@ -74,6 +75,9 @@ public class PlannerScreen extends Screen {
     public int left, top, guiWidth, guiHeight;
     private Component titleText;
 
+    //
+    public String materialSearch = "";
+
     public PlannerScreen(TinkerStationScreen child) {
         super(TranslationUtil.createComponent("name"));
         this.child = child;
@@ -102,7 +106,7 @@ public class PlannerScreen extends Screen {
     }
 
     @Override
-    protected void init() {
+    public void init() {
         guiWidth = 175;
         guiHeight = 204;
         left = width / 2 - guiWidth / 2;
@@ -155,6 +159,21 @@ public class PlannerScreen extends Screen {
             if (resultStack != null) {
                 addRenderableWidget(new ModifierPanel(left + guiWidth, top, 115, guiHeight, result, resultStack, modifiers, this));
             }
+        }
+    }
+
+    public void refreshMaterialList() {
+        // 先把所有旧的MaterialSelectPanel从screen的三张列表里彻底移除
+        List<GuiEventListener> toRemove = new ArrayList<>();
+        for (GuiEventListener g : new ArrayList<>(this.children)) {
+            if (g instanceof MaterialSelectPanel) toRemove.add(g);
+        }
+        for (GuiEventListener w : toRemove) {
+            this.removeWidget(w);
+        }
+        // 重新构建新的MaterialSelectPanel
+        if (selectedPart != -1) {
+            addRenderableWidget(new MaterialSelectPanel(left, top + 115, guiWidth, guiHeight - 115, this));
         }
     }
 
