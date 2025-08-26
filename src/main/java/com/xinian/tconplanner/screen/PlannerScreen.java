@@ -38,18 +38,29 @@ import slimeknights.tconstruct.tables.client.inventory.TinkerStationScreen;
 
 import java.io.IOException;
 import java.util.*;
+import com.xinian.tconplanner.api.TCArmor;
+import com.xinian.tconplanner.data.BaseBlueprint;
+import com.xinian.tconplanner.screen.buttons.TextButton;
+import com.xinian.tconplanner.data.ArmorBlueprint;
 
 public class PlannerScreen extends Screen {
 
     public static final ResourceLocation TEXTURE = new ResourceLocation(TConPlanner.MODID, "textures/gui/planner.png");
+
+    public enum PlannerMode {
+        TOOLS, ARMORS
+    }
+    private PlannerMode currentMode = PlannerMode.TOOLS;
+
     private final HashMap<String, Object> cache = new HashMap<>();
     public final Deque<Runnable> postRenderTasks = new ArrayDeque<>();
     private final TinkerStationScreen child;
     private final List<TCTool> tools = TCTool.getTools();
+    private final List<TCArmor> armors = TCArmor.getArmors();
     private final List<IDisplayModifierRecipe> modifiers;
     private final PlannerData data;
 
-    public Blueprint blueprint;
+    public BaseBlueprint<?> blueprint;
 
     public int selectedPart = 0;
     public int materialPage = 0;
@@ -79,6 +90,7 @@ public class PlannerScreen extends Screen {
 
     public PlannerScreen(TinkerStationScreen child, ToolStack stack) {
         this(child);
+        this.currentMode = PlannerMode.TOOLS;
         Optional<TCTool> optionalTCTool = TCTool.getTools().stream().filter(tool -> tool.getModifiable().getToolDefinition().getId().equals(stack.getDefinition().getId())).findAny();
         if (optionalTCTool.isPresent()) {
             blueprint = new Blueprint(optionalTCTool.get());
@@ -99,21 +111,44 @@ public class PlannerScreen extends Screen {
     }
 
     public void refresh() {
-
         clearWidgets();
         int toolSpace = 20;
-        titleText = blueprint == null ? TranslationUtil.createComponent("notool") : blueprint.tool.getName();
-        addRenderableWidget(new ToolSelectPanel(left - toolSpace * 5 - 4, top, toolSpace * 5, toolSpace * 3 + 23 + 4, tools, this));
+        int panelWidth = 100;
+        int panelX = left - panelWidth - 4;
+
+        // Mode switch buttons
+        addRenderableWidget(new TextButton(panelX, top, TranslationUtil.createComponent("mode.tools"), () -> {
+            if (this.currentMode != PlannerMode.TOOLS) {
+                this.currentMode = PlannerMode.TOOLS;
+                this.setBlueprint(null);
+            }
+        }, this).withColor(currentMode == PlannerMode.TOOLS ? 0x50ff50 : 0xffffff).withWidth(48));
+        addRenderableWidget(new TextButton(panelX + 52, top, TranslationUtil.createComponent("mode.armors"), () -> {
+            if (this.currentMode != PlannerMode.ARMORS) {
+                this.currentMode = PlannerMode.ARMORS;
+                this.setBlueprint(null);
+            }
+        }, this).withColor(currentMode == PlannerMode.ARMORS ? 0x50ff50 : 0xffffff).withWidth(48));
+
+
+        titleText = blueprint == null ? TranslationUtil.createComponent("notool") : blueprint.plannable.getName();
+
+        if (currentMode == PlannerMode.TOOLS) {
+            addRenderableWidget(new ToolSelectPanel(panelX, top + 22, panelWidth, toolSpace * 3 + 23 + 4, tools, this));
+        } else {
+            addRenderableWidget(new ArmorSelectPanel(panelX, top + 22, panelWidth, toolSpace * 3 + 23 + 4, armors, this));
+        }
+
 
         if (!data.saved.isEmpty()) {
-            addRenderableWidget(new BookmarkSelectPanel(left - toolSpace * 5 - 4, top + 15 + 18 * 4, toolSpace * 5, toolSpace * 5 + 23 + 4, data, this));
+            addRenderableWidget(new BookmarkSelectPanel(panelX, top + 22 + toolSpace * 3 + 23 + 4 + 4, panelWidth, toolSpace * 5 + 23 + 4, data, this));
         }
 
         if (blueprint != null) {
             int topPanelSize = 115;
             ItemStack result = blueprint.createOutput();
             ToolStack resultStack = result.isEmpty() ? null : ToolStack.from(result);
-            addRenderableWidget(new ToolTopPanel(left, top, guiWidth, topPanelSize, result, resultStack, data, this));
+            addRenderableWidget(new BlueprintTopPanel(left, top, guiWidth, topPanelSize, result, resultStack, data, this));
             if (selectedPart != -1) {
                 addRenderableWidget(new MaterialSelectPanel(left, top + topPanelSize, guiWidth, guiHeight - topPanelSize, this));
             }
@@ -139,7 +174,11 @@ public class PlannerScreen extends Screen {
         setBlueprint(new Blueprint(tools.get(index)));
     }
 
-    public void setBlueprint(Blueprint bp) {
+    public void setSelectedArmor(int index) {
+        setBlueprint(new ArmorBlueprint(armors.get(index)));
+    }
+
+    public void setBlueprint(BaseBlueprint<?> bp) {
         blueprint = bp;
         this.materialPage = 0;
         sorter = null;
@@ -254,10 +293,10 @@ public class PlannerScreen extends Screen {
     }
 
     public void randomize() {
-        if (blueprint != null && blueprint.toolDefinition != null) {
-            setBlueprint(new Blueprint(blueprint.tool));
+        if (blueprint instanceof Blueprint toolBlueprint) {
+            setBlueprint(new Blueprint(toolBlueprint.plannable));
             Random random = new Random();
-            List<IToolPart> parts = ToolPartsHook.parts(blueprint.toolDefinition);
+            List<IToolPart> parts = ToolPartsHook.parts(toolBlueprint.toolDefinition);
             List<IMaterial> allMaterials = new ArrayList<>(MaterialRegistry.getMaterials());
             for (int i = 0; i < parts.size(); i++) {
                 IToolPart part = parts.get(i);
@@ -267,7 +306,7 @@ public class PlannerScreen extends Screen {
                         .toList();
 
                 if (!usable.isEmpty()) {
-                    blueprint.materials[i] = usable.get(random.nextInt(usable.size()));
+                    this.blueprint.materials[i] = usable.get(random.nextInt(usable.size()));
                 }
             }
 
@@ -315,6 +354,8 @@ public class PlannerScreen extends Screen {
         return false;
     }
 
+        private record ModifierSignature(slimeknights.tconstruct.library.modifiers.Modifier modifier, slimeknights.tconstruct.library.tools.SlotType.SlotCount slots, int level) {}
+
     public static List<IDisplayModifierRecipe> getModifierRecipes() {
 
         if (Minecraft.getInstance().level == null) {
@@ -322,18 +363,17 @@ public class PlannerScreen extends Screen {
         }
         RecipeManager recipeManager = Minecraft.getInstance().level.getRecipeManager();
         List<IDisplayModifierRecipe> jeiRecipes = RecipeHelper.getJEIRecipes(recipeManager, TinkerRecipeTypes.TINKER_STATION.get(), IDisplayModifierRecipe.class);
+        
         List<IDisplayModifierRecipe> cleanedList = new ArrayList<>();
+        java.util.Set<ModifierSignature> seen = new java.util.HashSet<>();
+
         for (IDisplayModifierRecipe recipe : jeiRecipes) {
             if (recipe instanceof ITinkerStationRecipe) {
-                boolean contains = cleanedList.stream().anyMatch(recipe1 -> {
-                    ModifierEntry result1 = recipe1.getDisplayResult();
-                    ModifierEntry result2 = recipe.getDisplayResult();
-
-                    return result1.getModifier().equals(result2.getModifier()) &&
-                            Objects.equals(recipe1.getSlots(), recipe.getSlots()) &&
-                            result1.getLevel() == result2.getLevel();
-                });
-                if (!contains) cleanedList.add(recipe);
+                ModifierEntry result = recipe.getDisplayResult();
+                ModifierSignature signature = new ModifierSignature(result.getModifier(), recipe.getSlots(), result.getLevel());
+                if (seen.add(signature)) {
+                    cleanedList.add(recipe);
+                }
             }
         }
         return cleanedList;

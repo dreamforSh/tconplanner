@@ -129,7 +129,7 @@ public class ModifierSelectButton extends Button {
     public void onPress() {
         switch (state) {
             case AVAILABLE, APPLIED -> {
-                if (error == null) { // 只在没有错误（比如等级已满）的情况下执行操作
+                if (error == null) {
                     parent.selectedModifier = new ModifierInfo(recipe);
                     parent.refresh();
                 }

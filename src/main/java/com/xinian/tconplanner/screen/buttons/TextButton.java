@@ -31,6 +31,11 @@ public class TextButton extends Button {
         return this;
     }
 
+    public TextButton withWidth(int width) {
+        this.width = width;
+        return this;
+    }
+
     @Override
     public void renderButton(PoseStack stack, int mouseX, int mouseY, float p_230431_4_) {
         RenderSystem.enableBlend();

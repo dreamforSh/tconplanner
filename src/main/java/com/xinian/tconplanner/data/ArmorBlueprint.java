@@ -1,6 +1,6 @@
 package com.xinian.tconplanner.data;
 
-import com.xinian.tconplanner.api.TCTool;
+import com.xinian.tconplanner.api.TCArmor;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -14,21 +14,21 @@ import slimeknights.tconstruct.library.tools.SlotType;
 import java.util.Objects;
 import java.util.Optional;
 
-public class Blueprint extends BaseBlueprint<TCTool> {
+public class ArmorBlueprint extends BaseBlueprint<TCArmor> {
 
-    public Blueprint(TCTool tool) {
-        super(tool);
+    public ArmorBlueprint(TCArmor armor) {
+        super(armor);
     }
 
     @Override
-    public Blueprint clone() {
+    public ArmorBlueprint clone() {
         return fromNBT(toNBT());
     }
 
     @Override
     public CompoundTag toNBT() {
         CompoundTag nbt = new CompoundTag();
-        nbt.putString("tool", Objects.requireNonNull(ForgeRegistries.ITEMS.getKey(plannable.getItem())).toString());
+        nbt.putString("armor", Objects.requireNonNull(ForgeRegistries.ITEMS.getKey(plannable.getItem())).toString());
 
         ListTag matList = new ListTag();
         for (IMaterial material : materials) {
@@ -40,7 +40,11 @@ public class Blueprint extends BaseBlueprint<TCTool> {
         if (!creativeSlots.isEmpty()) {
             CompoundTag creativeSlotsNbt = new CompoundTag();
             creativeSlots.forEach((slotType, amount) -> {
-                if (amount > 0) creativeSlotsNbt.putInt(slotType.getName(), amount);
+                if (amount > 0) {
+                    String slotName = slotType.toString();
+                    slotName = slotName.substring(9, slotName.length() - 1);
+                    creativeSlotsNbt.putInt(slotName, amount);
+                }
             });
             if (!creativeSlotsNbt.isEmpty()) {
                 nbt.put("creativeSlots", creativeSlotsNbt);
@@ -49,12 +53,12 @@ public class Blueprint extends BaseBlueprint<TCTool> {
         return nbt;
     }
 
-    public static Blueprint fromNBT(CompoundTag tag) {
-        ResourceLocation toolRL = new ResourceLocation(tag.getString("tool"));
-        Optional<TCTool> optional = TCTool.getTools().stream()
-                .filter(tool -> Objects.equals(ForgeRegistries.ITEMS.getKey(tool.getItem()), toolRL)).findFirst();
+    public static ArmorBlueprint fromNBT(CompoundTag tag) {
+        ResourceLocation armorRL = new ResourceLocation(tag.getString("armor"));
+        Optional<TCArmor> optional = TCArmor.getArmors().stream()
+                .filter(armor -> Objects.equals(ForgeRegistries.ITEMS.getKey(armor.getItem()), armorRL)).findFirst();
         if (optional.isEmpty()) return null;
-        Blueprint bp = new Blueprint(optional.get());
+        ArmorBlueprint bp = new ArmorBlueprint(optional.get());
         ListTag materials = tag.getList("materials", 8);
         for (int i = 0; i < materials.size(); i++) {
             String id = materials.getString(i);

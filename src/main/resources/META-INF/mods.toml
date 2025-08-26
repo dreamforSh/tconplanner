@@ -26,7 +26,7 @@ description="Tinker's Planner is a client-side mod which allows you to try out d
     mandatory=true
     versionRange="[1.19.2,1.19.3)"
     ordering="NONE"
-    side="BOTH"
+    side="CLIENT"
 [[dependencies.tconplanner]]
     modId="tconstruct" #mandatory
     mandatory=true #mandatory

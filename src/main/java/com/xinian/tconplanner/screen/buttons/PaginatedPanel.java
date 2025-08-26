@@ -20,6 +20,7 @@ public class PaginatedPanel<T extends AbstractWidget> extends PlannerPanel {
     private int totalRows;
     private int totalPages;
     private float scrollPageHeight;
+    private boolean isDragging = false;
 
     public PaginatedPanel(int x, int y, int childWidth, int childHeight, int columns, int rows, int spacing, String cachePrefix, PlannerScreen parent) {
         super(x, y, (childWidth+spacing) * columns - spacing + 4, (childHeight+spacing) * rows - spacing, parent);
@@ -87,14 +88,15 @@ public class PaginatedPanel<T extends AbstractWidget> extends PlannerPanel {
             int scrollX = x + width - 3;
             int page = parent.getCacheValue(cachePrefix + ".page", 0);
             Screen.fill(stack, scrollX, y, scrollX + 3, y + height, 0x0f_ffffff + (isHovered ? 0x0a_000000 : 0));
-            Screen.fill(stack, scrollX, y + (int)(scrollPageHeight*page), scrollX + 3, y + (int)(scrollPageHeight*(page+rows)), 0x0f_ffffff + (isHovered ? 0x0f_000000 : 0));
+            Screen.fill(stack, scrollX, y + (int)(scrollPageHeight*page), scrollX + 3, y + (int)(scrollPageHeight*(page+rows)), 0x0f_ffffff + (isHovered || isDragging ? 0x0f_000000 : 0));
         }
     }
 
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if(totalPages > 1) {
             if (mouseX >= x + width - 3 && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
-                int clickedPage = (int) Math.min(((mouseY - y) / height) * totalPages, totalPages - 1);
+                isDragging = true;
+                int clickedPage = (int) Math.min(Math.max(((mouseY - y) / height) * totalPages, 0), totalPages - 1);
                 setPage(clickedPage);
                 return true;
             }
@@ -102,11 +104,27 @@ public class PaginatedPanel<T extends AbstractWidget> extends PlannerPanel {
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        isDragging = false;
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        if (isDragging) {
+            int clickedPage = (int) Math.min(Math.max(((mouseY - y) / height) * totalPages, 0), totalPages - 1);
+            setPage(clickedPage);
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    }
+
     public boolean mouseScrolled(double mouseX, double mouseY, double scroll) {
         boolean result = false;
         double scrollAmount = scroll * Config.CONFIG.scrollDirection.get().mult;
         int currentPage = parent.getCacheValue(cachePrefix + ".page", 0);
-        if(scrollAmount > 0 && currentPage < totalPages){
+        if(scrollAmount > 0 && currentPage < totalPages - 1){
             setPage(currentPage + 1);
             result = true;
         }else if(scrollAmount < 0 && currentPage > 0){

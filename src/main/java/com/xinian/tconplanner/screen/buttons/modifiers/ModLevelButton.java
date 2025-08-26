@@ -20,7 +20,7 @@ public class ModLevelButton extends Button {
     private Component tooltip;
 
     public ModLevelButton(int x, int y, int change, PlannerScreen parent) {
-        super(x, y, 18, 17, Component.literal(""), e -> {});  // 变更：new TextComponent("") -> Component.literal("")
+        super(x, y, 18, 17, Component.literal(""), e -> {});
         this.parent = parent;
         this.change = change;
     }

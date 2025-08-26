@@ -32,5 +32,8 @@
   "gui.tconplanner.modifierstack.save": "Save",
   "gui.tconplanner.modifierstack.moveup": "Move Up",
   "gui.tconplanner.modifierstack.movedown": "Move Down",
-  "gui.tconplanner.parts.modifier_descriptions": "Hold %1$s for modifiers"
+  "gui.tconplanner.parts.modifier_descriptions": "Hold %1$s for modifiers",
+  "gui.tconplanner.mode.tools": "Tools",
+  "gui.tconplanner.mode.armors": "Armors",
+  "gui.tconplanner.modifiers.error.notoolblueprint": "This modifier can only be applied to tool blueprints."
 }

@@ -12,8 +12,8 @@ import java.util.Objects;
 
 public class PlannerData {
 
-    public final List<Blueprint> saved = new ArrayList<>();
-    public Blueprint starred;
+    public final List<BaseBlueprint<?>> saved = new ArrayList<>();
+    public BaseBlueprint<?> starred;
 
     private final File bookmarkFile;
     private boolean hasLoaded;
@@ -37,14 +37,14 @@ public class PlannerData {
         load();
     }
 
-    public boolean isBookmarked(Blueprint bp){
+    public boolean isBookmarked(BaseBlueprint<?> bp){
         return saved.stream().anyMatch(blueprint -> blueprint.equals(bp));
     }
 
     public void save() throws IOException {
         ListTag nbt = new ListTag();
         List<CompoundTag> others = new ArrayList<>();
-        for (Blueprint bp : saved) {
+        for (BaseBlueprint<?> bp : saved) {
             CompoundTag cnbt = bp.toNBT();
             if(bp.isComplete() && !others.contains(cnbt)){
                 nbt.add(cnbt);
@@ -71,17 +71,31 @@ public class PlannerData {
     public void load() throws IOException {
         hasLoaded = true;
         saved.clear();
-        CompoundTag data = NbtIo.readCompressed(bookmarkFile);
-        ListTag nbt = data.getList("list", data.getId());
-        for(int i = 0; i < nbt.size(); i++){
-            CompoundTag tag = nbt.getCompound(i);
-            saved.add(Blueprint.fromNBT(tag));
+        starred = null;
+        if (!bookmarkFile.exists()) {
+            return;
         }
-        saved.removeIf(Objects::isNull);
-        if(data.contains("starred")){
-            starred = Blueprint.fromNBT(data.getCompound("starred"));
-        }else{
-            starred = null;
+        CompoundTag data = NbtIo.readCompressed(bookmarkFile);
+        ListTag nbt = data.getList("list", 10);
+        for (int i = 0; i < nbt.size(); i++) {
+            CompoundTag tag = nbt.getCompound(i);
+            BaseBlueprint<?> bp = null;
+            if (tag.contains("tool")) {
+                bp = Blueprint.fromNBT(tag);
+            } else if (tag.contains("armor")) {
+                bp = ArmorBlueprint.fromNBT(tag);
+            }
+            if (bp != null) {
+                saved.add(bp);
+            }
+        }
+        if (data.contains("starred")) {
+            CompoundTag starredTag = data.getCompound("starred");
+            if (starredTag.contains("tool")) {
+                starred = Blueprint.fromNBT(starredTag);
+            } else if (starredTag.contains("armor")) {
+                starred = ArmorBlueprint.fromNBT(starredTag);
+            }
         }
     }
 

@@ -19,6 +19,7 @@ import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import com.xinian.tconplanner.data.Blueprint;
+import com.xinian.tconplanner.data.BaseBlueprint;
 import com.xinian.tconplanner.data.PlannerData;
 import com.xinian.tconplanner.screen.PlannerScreen;
 import com.xinian.tconplanner.screen.buttons.BookmarkedButton;
@@ -124,7 +125,9 @@ public class EventListener {
                             throw new RuntimeException(ex);
                         }
                     }else{
-                        movePartsToSlots(screen, mc, data.starred);
+                        if (data.starred instanceof Blueprint toolBlueprint) {
+                            movePartsToSlots(screen, mc, toolBlueprint);
+                        }
                     }
                 }, screen));
             }
@@ -136,7 +139,7 @@ public class EventListener {
         if (e.getScreen() instanceof TinkerStationScreen screen) {
             PoseStack ms = e.getPoseStack();
             if (starredLayout) {
-                Blueprint starred = TConPlanner.DATA.starred;
+                Blueprint starred = (Blueprint)TConPlanner.DATA.starred;
                 ItemStack carried = screen.getMenu().getCarried();
                 for (int i = 0; i < layout.getInputSlots().size(); i++) {
                     LayoutSlot slot = layout.getInputSlots().get(i);
@@ -195,8 +198,8 @@ public class EventListener {
             layout = newLayout;
             PlannerData data = TConPlanner.DATA;
             boolean foundButton = false;
-            if(data.starred != null){
-                StationSlotLayout starredSlotLayout = data.starred.tool.getLayout();
+            if(data.starred instanceof Blueprint toolBlueprint){
+                StationSlotLayout starredSlotLayout = toolBlueprint.plannable.getLayout();
                 starredLayout = layout == starredSlotLayout;
                 for (SlotButtonItem button : buttonScreen.getButtons()) {
                     if(starredSlotLayout == button.getLayout()){
@@ -216,8 +219,8 @@ public class EventListener {
     }
 
     private static void movePartsToSlots(TinkerStationScreen screen, Minecraft mc, Blueprint starred){
-        if(layout == null || starred.tool.getLayout() != layout){
-            screen.onToolSelection(starred.tool.getLayout());
+        if(layout == null || starred.plannable.getLayout() != layout){
+            screen.onToolSelection(starred.plannable.getLayout());
             updateLayout(screen, true);
         }
         Player player = mc.player;

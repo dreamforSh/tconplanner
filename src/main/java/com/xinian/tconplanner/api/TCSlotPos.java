@@ -1,22 +1,21 @@
 package com.xinian.tconplanner.api;
 
-import slimeknights.tconstruct.library.tools.layout.LayoutSlot;
-
 public class TCSlotPos {
     public static final int partsOffsetX = 13, partsOffsetY = 15;
 
-    private final LayoutSlot pos;
+    private final int x, y;
 
-    TCSlotPos(LayoutSlot pos){
-        this.pos = pos;
+    public TCSlotPos(int x, int y){
+        this.x = x;
+        this.y = y;
     }
 
     public int getX(){
-        return pos.getX() + partsOffsetX;
+        return x + partsOffsetX;
     }
 
     public int getY(){
-        return pos.getY() + partsOffsetY;
+        return y + partsOffsetY;
     }
 
 }

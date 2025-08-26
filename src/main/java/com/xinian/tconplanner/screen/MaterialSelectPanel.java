@@ -2,7 +2,7 @@ package com.xinian.tconplanner.screen;
 
 import com.google.common.collect.Lists;
 import net.minecraft.sounds.SoundEvents;
-import com.xinian.tconplanner.data.Blueprint;
+import com.xinian.tconplanner.data.BaseBlueprint;
 import com.xinian.tconplanner.screen.buttons.IconButton;
 import com.xinian.tconplanner.screen.buttons.MatPageButton;
 import com.xinian.tconplanner.screen.buttons.MaterialButton;
@@ -24,7 +24,7 @@ public class MaterialSelectPanel extends PlannerPanel{
 
     public MaterialSelectPanel(int x, int y, int width, int height, PlannerScreen parent) {
         super(x, y, width, height, parent);
-        Blueprint blueprint = parent.blueprint;
+        BaseBlueprint<?> blueprint = parent.blueprint;
         //Add material list for the tool part
         IToolPart part = (IToolPart) blueprint.toolParts[parent.selectedPart];
         List<IMaterial> usable = MaterialRegistry.getMaterials().stream().filter(part::canUseMaterial).collect(Collectors.toList());

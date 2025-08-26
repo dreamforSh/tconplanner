@@ -7,7 +7,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import com.xinian.tconplanner.data.Blueprint;
+import com.xinian.tconplanner.data.BaseBlueprint;
 import com.xinian.tconplanner.screen.PlannerScreen;
 import com.xinian.tconplanner.util.Icon;
 
@@ -18,11 +18,11 @@ public class BookmarkedButton extends Button {
     private final PlannerScreen parent;
     private final ItemStack stack;
     private final int index;
-    private final Blueprint blueprint;
+    private final BaseBlueprint<?> blueprint;
     private final boolean starred;
     private boolean selected;
 
-    public BookmarkedButton(int index, Blueprint blueprint, boolean starred, PlannerScreen parent){
+    public BookmarkedButton(int index, BaseBlueprint<?> blueprint, boolean starred, PlannerScreen parent){
         super(0, 0, 18, 18, Component.literal(""), button -> parent.setBlueprint(blueprint.clone()));
         this.index = index;
         this.blueprint = blueprint;

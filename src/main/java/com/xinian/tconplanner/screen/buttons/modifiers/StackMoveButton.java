@@ -17,7 +17,7 @@ public class StackMoveButton extends Button {
     private final boolean moveUp;
 
     public StackMoveButton(int x, int y, boolean moveUp, PaginatedPanel<ModifierStackButton> scrollPanel, PlannerScreen parent) {
-        super(x, y, 18, 10, Component.literal(""), e -> {});  // 变更：new TextComponent("") -> Component.literal("")
+        super(x, y, 18, 10, Component.literal(""), e -> {});
         this.parent = parent;
         this.moveUp = moveUp;
         this.scrollPanel = scrollPanel;

@@ -13,7 +13,7 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import com.xinian.tconplanner.data.Blueprint;
+import com.xinian.tconplanner.data.BaseBlueprint;
 import com.xinian.tconplanner.screen.PlannerScreen;
 import com.xinian.tconplanner.util.TranslationUtil;
 import org.jetbrains.annotations.NotNull;
@@ -42,7 +42,7 @@ public class MaterialButton extends Button {
         this.stack = stack;
         this.parent = parent;
         if (parent.blueprint.isComplete()) {
-            Blueprint cloned = parent.blueprint.clone();
+            BaseBlueprint<?> cloned = parent.blueprint.clone();
             cloned.materials[parent.selectedPart] = material;
             RecipeResult<?> result = cloned.validate();
             if (result.hasError()) {

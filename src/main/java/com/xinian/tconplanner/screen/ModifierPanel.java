@@ -1,5 +1,6 @@
 package com.xinian.tconplanner.screen;
 
+import com.xinian.tconplanner.data.BaseBlueprint;
 import com.xinian.tconplanner.data.Blueprint;
 import com.xinian.tconplanner.data.ModifierInfo;
 import com.xinian.tconplanner.screen.buttons.*;
@@ -69,7 +70,7 @@ public class ModifierPanel extends PlannerPanel{
         addChild(new BannerWidget(7, 0, TranslationUtil.createComponent("banner.modifiers"), parent));
         int modGroupStartY = 23;
         int modGroupStartX = 2;
-        Blueprint blueprint = parent.blueprint;
+        BaseBlueprint<?> blueprint = parent.blueprint;
         ModifierInfo selectedModifier = parent.selectedModifier;
         ModifierStack modifierStack = parent.modifierStack;
 
@@ -80,7 +81,7 @@ public class ModifierPanel extends PlannerPanel{
             addChild(stackGroup);
             ToolStack displayStack = ToolStack.from(blueprint.createOutput(false));
             List<ModifierInfo> modStack = modifierStack.getStack();
-            Blueprint resultingBlueprint = parent.blueprint.clone();
+            BaseBlueprint<?> resultingBlueprint = parent.blueprint.clone();
             resultingBlueprint.modStack = modifierStack;
             RecipeResult<?> validatedResult = resultingBlueprint.validate();
             boolean isValid = !validatedResult.hasError();
@@ -116,7 +117,7 @@ public class ModifierPanel extends PlannerPanel{
             PaginatedPanel<ModifierSelectButton> modifiersGroup = new PaginatedPanel<>(modGroupStartX, modGroupStartY, 100, 18, 1, 9, 2, "modifiersgroup", parent);
             addChild(modifiersGroup);
             for (IDisplayModifierRecipe recipe : modifiers) {
-                if (recipe.getToolWithoutModifier().stream().anyMatch(stack -> ToolStack.from(stack).getDefinition() == blueprint.toolDefinition)) {
+                if (blueprint instanceof Blueprint toolBlueprint && recipe.getToolWithoutModifier().stream().anyMatch(stack -> ToolStack.from(stack).getDefinition() == toolBlueprint.toolDefinition)) {
                     modifiersGroup.addChild(ModifierSelectButton.create(recipe, tool, result, parent));
                 }
             }
@@ -149,14 +150,20 @@ public class ModifierPanel extends PlannerPanel{
                 addButton.disable(TranslationUtil.createComponent("modifiers.error.incrementnotmax").copy().setStyle(Style.EMPTY.withColor(ChatFormatting.RED)));
                 addChild(new ModPreviewWidget(addButton.x + addButton.getWidth() + 2, 50, ItemStack.EMPTY, parent));
             } else {
-                Blueprint copy = blueprint.clone();
+                BaseBlueprint<?> copy = blueprint.clone();
                 copy.modStack.push(selectedModifier);
                 addChild(new ModPreviewWidget(addButton.x + addButton.getWidth() + 2, 50, copy.createOutput(), parent));
             }
             addChild(addButton);
 
             ModLevelButton subtractButton = new ModLevelButton(2 + 50 - arrowOffset - 18, 50, -1, parent);
-            RecipeResult<ItemStack> validatedResultSubtract = ToolValidator.validateModRemoval(blueprint, tool, selectedModifier);
+            RecipeResult<ItemStack> validatedResultSubtract;
+            if (blueprint instanceof Blueprint toolBlueprint) {
+                validatedResultSubtract = ToolValidator.validateModRemoval(toolBlueprint, tool, selectedModifier);
+            } else {
+                validatedResultSubtract = RecipeResult.failure("gui.tconplanner.modifiers.error.notoolblueprint"); // Custom error message
+            }
+
             if (validatedResultSubtract.hasError()) {
                 subtractButton.disable(((MutableComponent) validatedResultSubtract.getMessage()).setStyle(Style.EMPTY.withColor(ChatFormatting.RED)));
             }

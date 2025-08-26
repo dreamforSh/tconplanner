@@ -7,6 +7,7 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
 import com.xinian.tconplanner.screen.PlannerScreen;
+import org.jetbrains.annotations.NotNull;
 
 public class BannerWidget extends AbstractWidget {
 
@@ -18,17 +19,17 @@ public class BannerWidget extends AbstractWidget {
     }
 
     @Override
-    public void renderButton(PoseStack stack, int mouseX, int mouseY, float p_230431_4_) {
+    public void renderButton(@NotNull PoseStack stack, int mouseX, int mouseY, float p_230431_4_) {
         PlannerScreen.bindTexture();
         parent.blit(stack, x, y, 0, 205, width, height);
         drawCenteredString(stack, Minecraft.getInstance().font, getMessage(), x + width/2, y + 5, 0xff_90_90_ff);
     }
 
     @Override
-    public void playDownSound(SoundManager SoundManager) {}
+    public void playDownSound(@NotNull SoundManager SoundManager) {}
 
     @Override
-    public void updateNarration(NarrationElementOutput p_169152_) {
+    public void updateNarration(@NotNull NarrationElementOutput p_169152_) {
 
     }
 }
