@@ -4,6 +4,7 @@
   "gui.tconplanner.name": "匠魂蓝图",
   "gui.tconplanner.notool": "选择工具",
   "gui.tconplanner.banner.tools": "工具列表",
+  "gui.tconplanner.banner.armors": "盔甲列表",
   "gui.tconplanner.banner.bookmarked": "已收藏",
   "gui.tconplanner.banner.modifiers": "修改器",
   "gui.tconplanner.sort": "排序：%1$s",
@@ -32,5 +33,9 @@
   "gui.tconplanner.modifierstack.save": "保存",
   "gui.tconplanner.modifierstack.moveup": "上移",
   "gui.tconplanner.modifierstack.movedown": "下移",
-  "gui.tconplanner.parts.modifier_descriptions": "按住%1$s查看词条说明"
+  "gui.tconplanner.parts.modifier_descriptions": "按住%1$s查看词条说明",
+  "gui.tconplanner.search": "搜索",
+  "gui.tconplanner.mode.tools": "工具",
+  "gui.tconplanner.mode.armors": "盔甲",
+  "gui.tconplanner.modifiers.error.notoolblueprint": "该修改器只能应用于工具蓝图。"
 }

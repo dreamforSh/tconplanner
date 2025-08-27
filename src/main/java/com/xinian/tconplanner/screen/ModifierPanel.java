@@ -28,6 +28,7 @@ import slimeknights.tconstruct.library.recipe.tinkerstation.ITinkerStationRecipe
 import slimeknights.tconstruct.library.tools.SlotType;
 import slimeknights.tconstruct.library.tools.nbt.LazyToolStack;
 import slimeknights.tconstruct.library.tools.nbt.ToolStack;
+import slimeknights.tconstruct.library.tools.item.IModifiable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -117,7 +118,7 @@ public class ModifierPanel extends PlannerPanel{
             PaginatedPanel<ModifierSelectButton> modifiersGroup = new PaginatedPanel<>(modGroupStartX, modGroupStartY, 100, 18, 1, 9, 2, "modifiersgroup", parent);
             addChild(modifiersGroup);
             for (IDisplayModifierRecipe recipe : modifiers) {
-                if (blueprint instanceof Blueprint toolBlueprint && recipe.getToolWithoutModifier().stream().anyMatch(stack -> ToolStack.from(stack).getDefinition() == toolBlueprint.toolDefinition)) {
+                if (recipe.getToolWithoutModifier().stream().anyMatch(stack -> !stack.isEmpty() && stack.getItem() instanceof IModifiable && ToolStack.from(stack).getDefinition() == blueprint.toolDefinition)) {
                     modifiersGroup.addChild(ModifierSelectButton.create(recipe, tool, result, parent));
                 }
             }
@@ -157,12 +158,7 @@ public class ModifierPanel extends PlannerPanel{
             addChild(addButton);
 
             ModLevelButton subtractButton = new ModLevelButton(2 + 50 - arrowOffset - 18, 50, -1, parent);
-            RecipeResult<ItemStack> validatedResultSubtract;
-            if (blueprint instanceof Blueprint toolBlueprint) {
-                validatedResultSubtract = ToolValidator.validateModRemoval(toolBlueprint, tool, selectedModifier);
-            } else {
-                validatedResultSubtract = RecipeResult.failure("gui.tconplanner.modifiers.error.notoolblueprint"); // Custom error message
-            }
+            RecipeResult<ItemStack> validatedResultSubtract = ToolValidator.validateModRemoval(blueprint, tool, selectedModifier);
 
             if (validatedResultSubtract.hasError()) {
                 subtractButton.disable(((MutableComponent) validatedResultSubtract.getMessage()).setStyle(Style.EMPTY.withColor(ChatFormatting.RED)));

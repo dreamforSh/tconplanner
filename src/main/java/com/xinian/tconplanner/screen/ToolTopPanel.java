@@ -24,8 +24,10 @@ public class ToolTopPanel extends PlannerPanel{
     public ToolTopPanel(int x, int y, int width, int height, ItemStack result, ToolStack tool, PlannerData data, PlannerScreen parent) {
         super(x, y, width, height, parent);
 
-        Blueprint blueprint = parent.blueprint;
-        List<TCSlotPos> positions = blueprint.tool.getSlotPos();
+        if (!(parent.blueprint instanceof Blueprint blueprint)) {
+            return;
+        }
+        List<TCSlotPos> positions = blueprint.plannable.getSlotPos();
         for(int i = 0; i < blueprint.materials.length; i++){
             TCSlotPos pos = positions.get(i);
             IToolPart part = (IToolPart) blueprint.toolParts[i];

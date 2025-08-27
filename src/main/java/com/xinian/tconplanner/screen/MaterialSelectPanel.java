@@ -10,6 +10,7 @@ import com.xinian.tconplanner.data.BaseBlueprint;
 import com.xinian.tconplanner.screen.buttons.IconButton;
 import com.xinian.tconplanner.screen.buttons.MatPageButton;
 import com.xinian.tconplanner.screen.buttons.MaterialButton;
+import com.xinian.tconplanner.util.JECharactersIntegration;
 import com.xinian.tconplanner.util.MaterialSort;
 import com.xinian.tconplanner.util.TranslationUtil;
 import org.jetbrains.annotations.NotNull;
@@ -37,7 +38,7 @@ public class MaterialSelectPanel extends PlannerPanel{
         int searchY = 90;
         this.searchBox = new EditBox(Minecraft.getInstance().font,
                 8, searchY, width - 16, 14,
-                Component.literal("Search"));
+                TranslationUtil.createComponent("search"));
         this.searchBox.setMaxLength(50);
         this.searchBox.setValue(parent.materialSearch);
         // 调用parent.refreshMaterialList()，然后在PlannerScreen中安全移除旧面板
@@ -52,27 +53,23 @@ public class MaterialSelectPanel extends PlannerPanel{
         BaseBlueprint<?> blueprint = parent.blueprint;
         //Add material list for the tool part
         IToolPart part = (IToolPart) blueprint.toolParts[parent.selectedPart];
-        //替换
-        //List<IMaterial> usable = MaterialRegistry.getMaterials().stream().filter(part::canUseMaterial).collect(Collectors.toList());
         List<IMaterial> usable = MaterialRegistry.getMaterials().stream()
                 .filter(part::canUseMaterial)
                 .filter(mat -> {
-                    if (parent.materialSearch == null || parent.materialSearch.isEmpty()) return true;
+                    if (parent.materialSearch == null || parent.materialSearch.isEmpty()) {
+                        return true;
+                    }
                     String search = parent.materialSearch.toLowerCase();
                     String id = mat.getIdentifier().toString().toLowerCase();
                     String translationKey = "material." + mat.getIdentifier().toString().replace(':', '.');
                     String name = Component.translatable(translationKey).getString().toLowerCase();
-                    // 先普通字符串搜索，再拼音搜索
-                    //我不知道1.19怎么判断的，没有ModList吗
-                    //if (ModList.get().isLoaded("jecharacters")) {
-                        return id.contains(search) || name.contains(search);
-                                //开发环境报错
-                               // ||me.towdium.jecharacters.utils.Match.matches(name, search);
-                    //}
-                    //else {
-                    //    return id.contains(search) || name.contains(search);
-                    //}
-
+                    if (id.contains(search) || name.contains(search)) {
+                        return true;
+                    }
+                    if (JECharactersIntegration.isLoaded()) {
+                        return JECharactersIntegration.matches(name, search);
+                    }
+                    return false;
                 })
                 .collect(Collectors.toList());
 

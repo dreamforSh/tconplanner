@@ -32,5 +32,9 @@
   "gui.tconplanner.star.move": "Click to move parts to station",
   "gui.tconplanner.modifiers.addcreativeslot": "Left-click to add creative slot",
   "gui.tconplanner.modifiers.removecreativeslot": "Right-click to remove creative slot",
-  "gui.tconplanner.parts.modifier_descriptions": "Hold %1$s for modifiers"
+  "gui.tconplanner.parts.modifier_descriptions": "Hold %1$s for modifiers",
+  "gui.tconplanner.search": "Поиск",
+  "gui.tconplanner.mode.tools": "Инструменты",
+  "gui.tconplanner.mode.armors": "Броня",
+  "gui.tconplanner.modifiers.error.notoolblueprint": "Этот модификатор может быть применен только к чертежам инструментов."
 }

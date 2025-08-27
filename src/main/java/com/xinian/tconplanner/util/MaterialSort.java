@@ -1,14 +1,16 @@
 package com.xinian.tconplanner.util;
 
 import com.google.common.collect.Lists;
+import net.minecraftforge.common.TierSortingRegistry;
 import slimeknights.tconstruct.library.materials.IMaterialRegistry;
 import slimeknights.tconstruct.library.materials.MaterialRegistry;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
 import slimeknights.tconstruct.library.materials.stats.IMaterialStats;
 import slimeknights.tconstruct.library.materials.stats.MaterialStatsId;
+import slimeknights.tconstruct.tools.stats.GripMaterialStats;
 import slimeknights.tconstruct.tools.stats.HandleMaterialStats;
 import slimeknights.tconstruct.tools.stats.HeadMaterialStats;
-import net.minecraftforge.common.TierSortingRegistry;
+import slimeknights.tconstruct.tools.stats.PlatingMaterialStats;
 
 import java.util.Comparator;
 import java.util.HashMap;
@@ -51,5 +53,11 @@ public record MaterialSort<T extends IMaterialStats>(Comparator<T> comparator, S
         add(HeadMaterialStats.class, new MaterialSort<>(Comparator.comparingInt(value -> TierSortingRegistry.getSortedTiers().indexOf(value.tier())), "Harvest Level", new Icon(5, 1)));
         add(HeadMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(HeadMaterialStats::miningSpeed), "Mining Speed", new Icon(2, 1)));
         add(HeadMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(HeadMaterialStats::attack), "Attack Damage", new Icon(4, 1)));
+
+        add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingInt(PlatingMaterialStats::durability), "Durability", new Icon(1, 1)));
+        add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(PlatingMaterialStats::toughness), "Armor Toughness", new Icon(6, 1)));
+        add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(PlatingMaterialStats::knockbackResistance), "Knockback Resistance", new Icon(7, 1)));
+
+        add(GripMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(GripMaterialStats::durability), "Durability", new Icon(1, 1)));
     }
 }

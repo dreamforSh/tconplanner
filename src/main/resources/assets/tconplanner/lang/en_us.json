@@ -35,5 +35,6 @@
   "gui.tconplanner.parts.modifier_descriptions": "Hold %1$s for modifiers",
   "gui.tconplanner.mode.tools": "Tools",
   "gui.tconplanner.mode.armors": "Armors",
-  "gui.tconplanner.modifiers.error.notoolblueprint": "This modifier can only be applied to tool blueprints."
+  "gui.tconplanner.modifiers.error.notoolblueprint": "This modifier can only be applied to tool blueprints.",
+  "gui.tconplanner.search": "Search"
 }

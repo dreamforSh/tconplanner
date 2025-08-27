@@ -312,26 +312,34 @@ public class PlannerScreen extends Screen {
     }
 
     public void randomize() {
+        if (blueprint == null) {
+            return;
+        }
         if (blueprint instanceof Blueprint toolBlueprint) {
             setBlueprint(new Blueprint(toolBlueprint.plannable));
-            Random random = new Random();
-            List<IToolPart> parts = ToolPartsHook.parts(toolBlueprint.toolDefinition);
-            List<IMaterial> allMaterials = new ArrayList<>(MaterialRegistry.getMaterials());
-            for (int i = 0; i < parts.size(); i++) {
-                IToolPart part = parts.get(i);
-
-                List<IMaterial> usable = allMaterials.stream()
-                        .filter(mat -> part.canUseMaterial(mat.getIdentifier()))
-                        .toList();
-
-                if (!usable.isEmpty()) {
-                    this.blueprint.materials[i] = usable.get(random.nextInt(usable.size()));
-                }
-            }
-
-            selectedModifier = null;
-            refresh();
+        } else if (blueprint instanceof ArmorBlueprint armorBlueprint) {
+            setBlueprint(new ArmorBlueprint(armorBlueprint.plannable));
+        } else {
+            return;
         }
+
+        Random random = new Random();
+        List<IToolPart> parts = ToolPartsHook.parts(blueprint.toolDefinition);
+        List<IMaterial> allMaterials = new ArrayList<>(MaterialRegistry.getMaterials());
+        for (int i = 0; i < parts.size(); i++) {
+            IToolPart part = parts.get(i);
+
+            List<IMaterial> usable = allMaterials.stream()
+                    .filter(mat -> part.canUseMaterial(mat.getIdentifier()))
+                    .toList();
+
+            if (!usable.isEmpty()) {
+                this.blueprint.materials[i] = usable.get(random.nextInt(usable.size()));
+            }
+        }
+
+        selectedModifier = null;
+        refresh();
     }
 
     public void giveItemstack(ItemStack stack) {
