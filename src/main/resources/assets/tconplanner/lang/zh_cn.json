@@ -37,5 +37,17 @@
   "gui.tconplanner.search": "搜索",
   "gui.tconplanner.mode.tools": "工具",
   "gui.tconplanner.mode.armors": "盔甲",
-  "gui.tconplanner.modifiers.error.notoolblueprint": "该修改器只能应用于工具蓝图。"
+  "gui.tconplanner.modifiers.error.notoolblueprint": "该修改器只能应用于工具蓝图。",
+  "gui.tconplanner.durability": "耐久",
+  "gui.tconplanner.durability_multiplier": "耐久倍率",
+  "gui.tconplanner.mining_speed": "挖掘速度",
+  "gui.tconplanner.attack_speed": "攻击速度",
+  "gui.tconplanner.attack_damage": "攻击伤害",
+  "gui.tconplanner.harvest_level": "采集等级",
+  "gui.tconplanner.armor": "护甲值",
+  "gui.tconplanner.armor_toughness": "护甲韧性",
+  "gui.tconplanner.knockback_resistance": "击退抗性",
+  "gui.tconplanner.accuracy": "精准度",
+  "gui.tconplanner.draw_speed": "拉弓速度",
+  "gui.tconplanner.velocity": "射箭速度"
 }

@@ -1,23 +1,21 @@
 package com.xinian.tconplanner.util;
 
 import com.google.common.collect.Lists;
+import net.minecraft.network.chat.Component;
 import net.minecraftforge.common.TierSortingRegistry;
 import slimeknights.tconstruct.library.materials.IMaterialRegistry;
 import slimeknights.tconstruct.library.materials.MaterialRegistry;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
 import slimeknights.tconstruct.library.materials.stats.IMaterialStats;
 import slimeknights.tconstruct.library.materials.stats.MaterialStatsId;
-import slimeknights.tconstruct.tools.stats.GripMaterialStats;
-import slimeknights.tconstruct.tools.stats.HandleMaterialStats;
-import slimeknights.tconstruct.tools.stats.HeadMaterialStats;
-import slimeknights.tconstruct.tools.stats.PlatingMaterialStats;
+import slimeknights.tconstruct.tools.stats.*;
 
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
-public record MaterialSort<T extends IMaterialStats>(Comparator<T> comparator, String text, Icon icon) {
+public record MaterialSort<T extends IMaterialStats>(Comparator<T> comparator, Component text, Icon icon) {
 
     public static final HashMap<Class<? extends IMaterialStats>, List<MaterialSort<?>>> MAP = new HashMap<>();
 
@@ -44,20 +42,50 @@ public record MaterialSort<T extends IMaterialStats>(Comparator<T> comparator, S
     }
 
     static {
-        add(HandleMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(HandleMaterialStats::durability), "Durability Multiplier", new Icon(0, 1)));
-        add(HandleMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(HandleMaterialStats::miningSpeed), "Mining Speed", new Icon(2, 1)));
-        add(HandleMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(HandleMaterialStats::meleeSpeed), "Attack Speed", new Icon(3, 1)));
-        add(HandleMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(HandleMaterialStats::attackDamage), "Attack Damage", new Icon(4, 1)));
+        // Handle stats
+        add(HandleMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(HandleMaterialStats::durability),
+                TranslationUtil.createComponent("durability_multiplier"), new Icon(0, 1)));
+        add(HandleMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(HandleMaterialStats::miningSpeed),
+                TranslationUtil.createComponent("mining_speed"), new Icon(2, 1)));
+        add(HandleMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(HandleMaterialStats::meleeSpeed),
+                TranslationUtil.createComponent("attack_speed"), new Icon(3, 1)));
+        add(HandleMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(HandleMaterialStats::attackDamage),
+                TranslationUtil.createComponent("attack_damage"), new Icon(4, 1)));
 
-        add(HeadMaterialStats.class, new MaterialSort<>(Comparator.comparingInt(HeadMaterialStats::durability), "Durability", new Icon(1, 1)));
-        add(HeadMaterialStats.class, new MaterialSort<>(Comparator.comparingInt(value -> TierSortingRegistry.getSortedTiers().indexOf(value.tier())), "Harvest Level", new Icon(5, 1)));
-        add(HeadMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(HeadMaterialStats::miningSpeed), "Mining Speed", new Icon(2, 1)));
-        add(HeadMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(HeadMaterialStats::attack), "Attack Damage", new Icon(4, 1)));
+        // Head stats
+        add(HeadMaterialStats.class, new MaterialSort<>(Comparator.comparingInt(HeadMaterialStats::durability),
+                TranslationUtil.createComponent("durability"), new Icon(1, 1)));
+        add(HeadMaterialStats.class, new MaterialSort<>(Comparator.comparingInt(value -> TierSortingRegistry.getSortedTiers().indexOf(value.tier())),
+                TranslationUtil.createComponent("harvest_level"), new Icon(5, 1)));
+        add(HeadMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(HeadMaterialStats::miningSpeed),
+                TranslationUtil.createComponent("mining_speed"), new Icon(2, 1)));
+        add(HeadMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(HeadMaterialStats::attack),
+                TranslationUtil.createComponent("attack_damage"), new Icon(4, 1)));
 
-        add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingInt(PlatingMaterialStats::durability), "Durability", new Icon(1, 1)));
-        add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(PlatingMaterialStats::toughness), "Armor Toughness", new Icon(6, 1)));
-        add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(PlatingMaterialStats::knockbackResistance), "Knockback Resistance", new Icon(7, 1)));
+        // Plating stats
+        add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingInt(PlatingMaterialStats::durability),
+                TranslationUtil.createComponent("durability"), new Icon(1, 1)));
+        add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(PlatingMaterialStats::armor),
+                TranslationUtil.createComponent("armor"), new Icon(6, 1)));
+        add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(PlatingMaterialStats::toughness),
+                TranslationUtil.createComponent("armor_toughness"), new Icon(7, 1)));
+        add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(PlatingMaterialStats::knockbackResistance),
+                TranslationUtil.createComponent("knockback_resistance"), new Icon(8, 1)));
 
-        add(GripMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(GripMaterialStats::durability), "Durability", new Icon(1, 1)));
+        // Grip stats
+        add(GripMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(GripMaterialStats::durability),
+                TranslationUtil.createComponent("durability_multiplier"), new Icon(1, 1)));
+        add(GripMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(GripMaterialStats::accuracy),
+                TranslationUtil.createComponent("accuracy"), new Icon(11, 1)));
+
+        // Limb stats
+        add(LimbMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(LimbMaterialStats::durability),
+                TranslationUtil.createComponent("durability"), new Icon(1, 1)));
+        add(LimbMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(LimbMaterialStats::drawSpeed),
+                TranslationUtil.createComponent("draw_speed"), new Icon(9, 1)));
+        add(LimbMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(LimbMaterialStats::velocity),
+                TranslationUtil.createComponent("velocity"), new Icon(10, 1)));
+        add(LimbMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(LimbMaterialStats::accuracy),
+                TranslationUtil.createComponent("accuracy"), new Icon(11, 1)));
     }
 }

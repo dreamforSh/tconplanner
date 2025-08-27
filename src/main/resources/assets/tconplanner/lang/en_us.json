@@ -36,5 +36,17 @@
   "gui.tconplanner.mode.tools": "Tools",
   "gui.tconplanner.mode.armors": "Armors",
   "gui.tconplanner.modifiers.error.notoolblueprint": "This modifier can only be applied to tool blueprints.",
-  "gui.tconplanner.search": "Search"
+  "gui.tconplanner.search": "Search",
+  "gui.tconplanner.durability": "Durability",
+  "gui.tconplanner.durability_multiplier": "Durability Multiplier",
+  "gui.tconplanner.mining_speed": "Mining Speed",
+  "gui.tconplanner.attack_speed": "Attack Speed",
+  "gui.tconplanner.attack_damage": "Attack Damage",
+  "gui.tconplanner.harvest_level": "Harvest Level",
+  "gui.tconplanner.armor": "Armor",
+  "gui.tconplanner.armor_toughness": "Armor Toughness",
+  "gui.tconplanner.knockback_resistance": "Knockback Resistance",
+  "gui.tconplanner.accuracy": "Accuracy",
+  "gui.tconplanner.draw_speed": "Draw Speed",
+  "gui.tconplanner.velocity": "Velocity"
 }
