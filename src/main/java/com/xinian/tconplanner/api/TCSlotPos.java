@@ -1,7 +1,7 @@
 package com.xinian.tconplanner.api;
 
 public class TCSlotPos {
-    public static final int partsOffsetX = 13, partsOffsetY = 15;
+    public static final int partsOffsetX = 15, partsOffsetY = 15;
 
     private final int x, y;
 
