@@ -55,8 +55,9 @@ public record MaterialSort<T extends IMaterialStats>(Comparator<T> comparator, S
         add(HeadMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(HeadMaterialStats::attack), "Attack Damage", new Icon(4, 1)));
 
         add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingInt(PlatingMaterialStats::durability), "Durability", new Icon(1, 1)));
-        add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(PlatingMaterialStats::toughness), "Armor Toughness", new Icon(6, 1)));
-        add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(PlatingMaterialStats::knockbackResistance), "Knockback Resistance", new Icon(7, 1)));
+        add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(PlatingMaterialStats::armor), "Armor", new Icon(6, 1)));
+        add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(PlatingMaterialStats::toughness), "Armor Toughness", new Icon(7, 1)));
+        add(PlatingMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(PlatingMaterialStats::knockbackResistance), "Knockback Resistance", new Icon(8, 1)));
 
         add(GripMaterialStats.class, new MaterialSort<>(Comparator.comparingDouble(GripMaterialStats::durability), "Durability", new Icon(1, 1)));
     }
