@@ -36,6 +36,7 @@ public class TCArmor implements IPlannable {
             ResourceLocation.fromNamespaceAndPath(TConstruct.MOD_ID, "travelers_chestplate"),
             ResourceLocation.fromNamespaceAndPath(TConstruct.MOD_ID, "travelers_leggings"),
             ResourceLocation.fromNamespaceAndPath(TConstruct.MOD_ID, "travelers_boots")
+
     );
 
     private TCArmor(Item item, EquipmentSlot equipmentSlot) {
@@ -80,11 +81,13 @@ public class TCArmor implements IPlannable {
 
     @Override
     public List<TCSlotPos> getSlotPos() {
-
         List<TCSlotPos> pos = new ArrayList<>();
         int parts = ToolPartsHook.parts(getToolDefinition()).size();
+        int centeredX = 32;
+        int startY = 49 - (parts * 9);
+
         for (int i = 0; i < parts; i++) {
-            pos.add(new TCSlotPos(i * 18, 0));
+            pos.add(new TCSlotPos(centeredX, startY + i * 18));
         }
         return pos;
     }
