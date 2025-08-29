@@ -1,18 +1,34 @@
 package com.xinian.tconplanner.data;
 
-import com.xinian.tconplanner.api.TCTool;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
+import com.xinian.tconplanner.api.TCTool;
+import com.xinian.tconplanner.util.DummyTinkersStationInventory;
+import com.xinian.tconplanner.util.ModifierStack;
 import slimeknights.tconstruct.library.materials.MaterialRegistry;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
 import slimeknights.tconstruct.library.materials.definition.MaterialId;
+import slimeknights.tconstruct.library.materials.stats.MaterialStatsId;
+import slimeknights.tconstruct.library.recipe.modifiers.adding.IDisplayModifierRecipe;
+import slimeknights.tconstruct.library.recipe.tinkerstation.ITinkerStationRecipe;
+import slimeknights.tconstruct.library.recipe.RecipeResult;
 import slimeknights.tconstruct.library.tools.SlotType;
+import slimeknights.tconstruct.library.tools.definition.ToolDefinition;
+import slimeknights.tconstruct.library.tools.definition.module.material.ToolMaterialHook;
+import slimeknights.tconstruct.library.tools.definition.module.material.ToolPartsHook;
+import slimeknights.tconstruct.library.tools.helper.ToolBuildHandler;
+import slimeknights.tconstruct.library.tools.item.IModifiable;
+import slimeknights.tconstruct.library.tools.nbt.MaterialNBT;
+import slimeknights.tconstruct.library.tools.nbt.ToolStack;
+import slimeknights.tconstruct.library.tools.part.IToolPart;
 
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 public class Blueprint extends BaseBlueprint<TCTool> {
 
@@ -50,7 +66,7 @@ public class Blueprint extends BaseBlueprint<TCTool> {
     }
 
     public static Blueprint fromNBT(CompoundTag tag) {
-        ResourceLocation toolRL = new ResourceLocation(tag.getString("tool"));
+        ResourceLocation toolRL = ResourceLocation.parse(tag.getString("tool"));
         Optional<TCTool> optional = TCTool.getTools().stream()
                 .filter(tool -> Objects.equals(ForgeRegistries.ITEMS.getKey(tool.getItem()), toolRL)).findFirst();
         if (optional.isEmpty()) return null;

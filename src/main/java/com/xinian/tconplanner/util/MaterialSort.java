@@ -2,13 +2,13 @@ package com.xinian.tconplanner.util;
 
 import com.google.common.collect.Lists;
 import net.minecraft.network.chat.Component;
-import net.minecraftforge.common.TierSortingRegistry;
 import slimeknights.tconstruct.library.materials.IMaterialRegistry;
 import slimeknights.tconstruct.library.materials.MaterialRegistry;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
 import slimeknights.tconstruct.library.materials.stats.IMaterialStats;
 import slimeknights.tconstruct.library.materials.stats.MaterialStatsId;
 import slimeknights.tconstruct.tools.stats.*;
+import net.minecraftforge.common.TierSortingRegistry;
 
 import java.util.Comparator;
 import java.util.HashMap;

@@ -1,16 +1,16 @@
 package com.xinian.tconplanner.screen.buttons;
 
-import com.mojang.blaze3d.vertex.PoseStack;
+import com.xinian.tconplanner.screen.PlannerScreen;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
-import com.xinian.tconplanner.screen.PlannerScreen;
 import org.jetbrains.annotations.NotNull;
 
 public class BannerWidget extends AbstractWidget {
-
     private final PlannerScreen parent;
 
     public BannerWidget(int x, int y, Component text, PlannerScreen parent) {
@@ -19,17 +19,24 @@ public class BannerWidget extends AbstractWidget {
     }
 
     @Override
-    public void renderButton(@NotNull PoseStack stack, int mouseX, int mouseY, float p_230431_4_) {
-        PlannerScreen.bindTexture();
-        parent.blit(stack, x, y, 0, 205, width, height);
-        drawCenteredString(stack, Minecraft.getInstance().font, getMessage(), x + width/2, y + 5, 0xff_90_90_ff);
+    public void renderWidget(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+
+        guiGraphics.blit(PlannerScreen.TEXTURE, this.getX(), this.getY(), 0, 205, this.getWidth(), this.getHeight());
+
+        Font font = Minecraft.getInstance().font;
+        guiGraphics.drawCenteredString(font, this.getMessage(), this.getX() + this.getWidth() / 2, this.getY() + 5, 0xff_90_90_ff);
     }
 
     @Override
-    public void playDownSound(@NotNull SoundManager SoundManager) {}
+    public void playDownSound(@NotNull SoundManager soundManager) {
+    }
+
 
     @Override
-    public void updateNarration(@NotNull NarrationElementOutput p_169152_) {
+    protected void updateWidgetNarration(@NotNull NarrationElementOutput narrationElementOutput) {
+    }
 
+    public PlannerScreen getParent() {
+        return parent;
     }
 }

@@ -1,6 +1,7 @@
 package com.xinian.tconplanner.util;
 
 import com.xinian.tconplanner.data.BaseBlueprint;
+import com.xinian.tconplanner.data.Blueprint;
 import com.xinian.tconplanner.data.ModifierInfo;
 import net.minecraft.world.item.ItemStack;
 import slimeknights.tconstruct.library.recipe.RecipeResult;
@@ -28,6 +29,7 @@ public final class ToolValidator {
         toolClone.removeModifier(modInfo.modifier.getId(), 1);
 
         BaseBlueprint<?> bpClone = bp.clone();
+        bpClone.modStack.pop(modInfo);
 
         RecipeResult<?> bpResult = bpClone.validate();
         if(bpResult.hasError()) {

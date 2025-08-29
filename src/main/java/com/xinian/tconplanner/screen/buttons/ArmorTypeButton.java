@@ -2,10 +2,11 @@ package com.xinian.tconplanner.screen.buttons;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.Button;
 import com.xinian.tconplanner.api.TCArmor;
 import com.xinian.tconplanner.screen.PlannerScreen;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 
 public class ArmorTypeButton extends Button {
 
@@ -15,7 +16,7 @@ public class ArmorTypeButton extends Button {
     private final PlannerScreen parent;
 
     public ArmorTypeButton(int index, TCArmor armor, PlannerScreen parent) {
-        super(0, 0, 18, 18, armor.getDescription(), button -> parent.setSelectedArmor(index));
+        super(0, 0, 18, 18, armor.getDescription(), button -> parent.setSelectedArmor(index), DEFAULT_NARRATION);
         this.armor = armor;
         this.index = index;
         this.parent = parent;
@@ -23,18 +24,15 @@ public class ArmorTypeButton extends Button {
     }
 
     @Override
-    public void renderButton(PoseStack stack, int mouseX, int mouseY, float p_230431_4_) {
-        PlannerScreen.bindTexture();
-        RenderSystem.enableBlend();
-        parent.blit(stack, x, y, 213, 41 + (selected ? 18 : 0), 18, 18);
-        Minecraft.getInstance().getItemRenderer().renderGuiItem(armor.getRenderStack(), x + 1, y + 1);
+    public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float p_230431_4_) {
+        guiGraphics.blit(PlannerScreen.TEXTURE, this.getX(), this.getY(), 213, 41 + (selected ? 18 : 0), 18, 18);
+        guiGraphics.renderFakeItem(armor.getRenderStack(), this.getX() + 1, this.getY() + 1);
         if(isHovered){
-            renderToolTip(stack, mouseX, mouseY);
+            renderToolTip(guiGraphics, mouseX, mouseY);
         }
     }
 
-    @Override
-    public void renderToolTip(PoseStack stack, int mouseX, int mouseY) {
-        parent.postRenderTasks.add(() -> parent.renderItemTooltip(stack, armor.getRenderStack(), mouseX, mouseY));
+    public void renderToolTip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+            parent.postRenderTasks.add(() -> parent.renderItemTooltip(guiGraphics, armor.getRenderStack(), mouseX, mouseY));
     }
 }

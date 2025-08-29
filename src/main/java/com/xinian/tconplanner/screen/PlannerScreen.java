@@ -2,24 +2,28 @@ package com.xinian.tconplanner.screen;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
+import com.xinian.tconplanner.TConPlanner;
+import com.xinian.tconplanner.api.TCArmor;
+import com.xinian.tconplanner.api.TCTool;
+import com.xinian.tconplanner.data.*;
+import com.xinian.tconplanner.screen.buttons.TextButton;
+import com.xinian.tconplanner.util.MaterialSort;
+import com.xinian.tconplanner.util.ModifierStack;
+import com.xinian.tconplanner.util.TranslationUtil;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeManager;
-import com.xinian.tconplanner.TConPlanner;
-import com.xinian.tconplanner.api.TCTool;
-import com.xinian.tconplanner.data.Blueprint;
-import com.xinian.tconplanner.data.ModifierInfo;
-import com.xinian.tconplanner.data.PlannerData;
-import com.xinian.tconplanner.util.MaterialSort;
-import com.xinian.tconplanner.util.ModifierStack;
-import com.xinian.tconplanner.util.TranslationUtil;
 import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
 import slimeknights.mantle.recipe.helper.RecipeHelper;
@@ -29,25 +33,17 @@ import slimeknights.tconstruct.library.modifiers.ModifierEntry;
 import slimeknights.tconstruct.library.recipe.TinkerRecipeTypes;
 import slimeknights.tconstruct.library.recipe.modifiers.adding.IDisplayModifierRecipe;
 import slimeknights.tconstruct.library.recipe.tinkerstation.ITinkerStationRecipe;
-import slimeknights.tconstruct.library.tools.definition.module.ToolHooks;
-import slimeknights.tconstruct.library.tools.definition.module.material.PartsModule;
 import slimeknights.tconstruct.library.tools.definition.module.material.ToolPartsHook;
 import slimeknights.tconstruct.library.tools.nbt.ToolStack;
 import slimeknights.tconstruct.library.tools.part.IToolPart;
-import slimeknights.tconstruct.library.tools.part.ToolPartItem;
 import slimeknights.tconstruct.tables.client.inventory.TinkerStationScreen;
 
 import java.io.IOException;
 import java.util.*;
-import com.xinian.tconplanner.api.TCArmor;
-import com.xinian.tconplanner.data.BaseBlueprint;
-import com.xinian.tconplanner.screen.buttons.TextButton;
-import com.xinian.tconplanner.data.ArmorBlueprint;
 
 public class PlannerScreen extends Screen {
 
-    public static final ResourceLocation TEXTURE = new ResourceLocation(TConPlanner.MODID, "textures/gui/planner.png");
-
+    public static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(TConPlanner.MODID, "textures/gui/planner.png");
     public enum PlannerMode {
         TOOLS, ARMORS
     }
@@ -78,6 +74,7 @@ public class PlannerScreen extends Screen {
     //
     public String materialSearch = "";
 
+
     public PlannerScreen(TinkerStationScreen child) {
         super(TranslationUtil.createComponent("name"));
         this.child = child;
@@ -85,10 +82,8 @@ public class PlannerScreen extends Screen {
         try {
             data.load();
         } catch (Exception ex) {
-
             TConPlanner.LOGGER.error("Failed to load planner data", ex);
         }
-
         modifiers = getModifierRecipes();
     }
 
@@ -112,6 +107,15 @@ public class PlannerScreen extends Screen {
         left = width / 2 - guiWidth / 2;
         top = height / 2 - guiHeight / 2;
         refresh();
+    }
+    public void removeWidget(@NotNull GuiEventListener widget) {
+        this.children.remove(widget);
+        if (widget instanceof Renderable r) {
+            this.renderables.remove(r);
+        }
+        if (widget instanceof NarratableEntry n) {
+            this.narratables.remove(n);
+        }
     }
 
     public void refresh() {
@@ -162,6 +166,7 @@ public class PlannerScreen extends Screen {
         }
     }
 
+
     public void refreshMaterialList() {
         // 先把所有旧的MaterialSelectPanel从screen的三张列表里彻底移除
         List<GuiEventListener> toRemove = new ArrayList<>();
@@ -178,23 +183,31 @@ public class PlannerScreen extends Screen {
     }
 
     @Override
-    public void render(@NotNull PoseStack stack, int mouseX, int mouseY, float partialTick) {
-        renderBackground(stack);
-        bindTexture();
-        this.blit(stack, left, top, 0, 0, guiWidth, guiHeight);
-        drawCenteredString(stack, font, titleText, left + guiWidth / 2, top + 7, 0xffffffff);
+    public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        this.renderBackground(guiGraphics);
+        guiGraphics.blit(TEXTURE, left, top, 0, 0, guiWidth, guiHeight);
+        guiGraphics.drawCenteredString(this.font, titleText, left + guiWidth / 2, top + 7, 0xffffffff);
 
-        super.render(stack, mouseX, mouseY, partialTick);
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
+        // 手动检测鼠标悬停子控件，调用renderComponentTooltip
+        for (GuiEventListener child : this.children) {
+            if (child instanceof AbstractWidget widget) {
+                if (widget.isMouseOver(mouseX, mouseY) && widget.isMouseOver(mouseX, mouseY)) {
+                    List<Component> tooltip = widget.getMessage().getSiblings();
+                    if (!tooltip.isEmpty()) {
+                        guiGraphics.renderTooltip(this.font, (Component) tooltip, mouseX, mouseY);
+                        guiGraphics.renderComponentTooltip(this.font, tooltip, mouseX, mouseY);
+                    }
+                }
+            }
+        }
         Runnable task;
         while ((task = postRenderTasks.poll()) != null) task.run();
     }
 
+
     public void setSelectedTool(int index) {
         setBlueprint(new Blueprint(tools.get(index)));
-    }
-
-    public void setSelectedArmor(int index) {
-        setBlueprint(new ArmorBlueprint(armors.get(index)));
     }
 
     public void setBlueprint(BaseBlueprint<?> bp) {
@@ -227,7 +240,7 @@ public class PlannerScreen extends Screen {
         InputConstants.Key mouseKey = InputConstants.getKey(key, p_231046_2_);
         if (super.keyPressed(key, p_231046_2_, p_231046_3_)) {
             return true;
-        } else if (this.minecraft != null && this.minecraft.options.keyInventory.isActiveAndMatches(mouseKey)) { // <<-- 变更点 5: 添加 null 检查
+        } else if (this.minecraft != null && this.minecraft.options.keyInventory.isActiveAndMatches(mouseKey)) {
             this.onClose();
             return true;
         }
@@ -239,23 +252,19 @@ public class PlannerScreen extends Screen {
         return false;
     }
 
-    public void renderItemTooltip(PoseStack mstack, ItemStack stack, int x, int y) {
-        renderTooltip(mstack, stack, x, y);
+    public void renderItemTooltip(GuiGraphics guiGraphics, ItemStack stack, int x, int y) {
+        guiGraphics.renderTooltip(this.font, stack, x, y);
     }
 
+    public void renderComponentTooltip(GuiGraphics guiGraphics, List<Component> components, int x, int y) {
+        guiGraphics.renderComponentTooltip(this.font, components, x, y);
+    }
 
     @Override
     public void onClose() {
-        // <<-- 变更点 5: 添加 null 检查
         if (this.minecraft != null) {
             this.minecraft.setScreen(child);
         }
-    }
-
-    public static void bindTexture() {
-        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        RenderSystem.setShader(GameRenderer::getPositionTexShader);
-        RenderSystem.setShaderTexture(0, TEXTURE);
     }
 
     public void bookmarkCurrent() {
@@ -264,7 +273,6 @@ public class PlannerScreen extends Screen {
             try {
                 data.refresh();
             } catch (IOException e) {
-                // <<-- 变更点 3: 使用 Logger
                 TConPlanner.LOGGER.error("Failed to refresh planner data after bookmarking", e);
             }
         }
@@ -277,7 +285,6 @@ public class PlannerScreen extends Screen {
             try {
                 data.refresh();
             } catch (IOException e) {
-
                 TConPlanner.LOGGER.error("Failed to refresh planner data after starring", e);
             }
         }
@@ -291,7 +298,6 @@ public class PlannerScreen extends Screen {
             try {
                 data.refresh();
             } catch (IOException e) {
-
                 TConPlanner.LOGGER.error("Failed to refresh planner data after unbookmarking", e);
             }
         }
@@ -304,8 +310,7 @@ public class PlannerScreen extends Screen {
             try {
                 data.refresh();
             } catch (IOException e) {
-
-                TConPlanner.LOGGER.error("Failed to refresh planner data after unstarring", e);
+                TConPlanner.LOGGER.error("Failed to refresh planner data after un-starring", e);
             }
         }
         refresh();
@@ -343,7 +348,6 @@ public class PlannerScreen extends Screen {
     }
 
     public void giveItemstack(ItemStack stack) {
-
         if (this.minecraft == null || this.minecraft.player == null || this.minecraft.gameMode == null) {
             return;
         }
@@ -366,7 +370,6 @@ public class PlannerScreen extends Screen {
         refresh();
     }
 
-
     @SuppressWarnings("unchecked")
     public <T> T getCacheValue(String key, T defaultVal) {
         return (T) cache.getOrDefault(key, defaultVal);
@@ -376,31 +379,34 @@ public class PlannerScreen extends Screen {
         cache.put(key, value);
     }
 
+    public void setSelectedArmor(int index) {
+        setBlueprint(new ArmorBlueprint(armors.get(index)));
+    }
+
     @Override
     public boolean isPauseScreen() {
         return false;
     }
 
-        private record ModifierSignature(slimeknights.tconstruct.library.modifiers.Modifier modifier, slimeknights.tconstruct.library.tools.SlotType.SlotCount slots, int level) {}
-
     public static List<IDisplayModifierRecipe> getModifierRecipes() {
-
         if (Minecraft.getInstance().level == null) {
             return Collections.emptyList();
         }
         RecipeManager recipeManager = Minecraft.getInstance().level.getRecipeManager();
-        List<IDisplayModifierRecipe> jeiRecipes = RecipeHelper.getJEIRecipes(recipeManager, TinkerRecipeTypes.TINKER_STATION.get(), IDisplayModifierRecipe.class);
-        
+        RegistryAccess registryAccess = Minecraft.getInstance().level.registryAccess();
+        List<IDisplayModifierRecipe> jeiRecipes = RecipeHelper.getJEIRecipes(registryAccess,recipeManager, TinkerRecipeTypes.TINKER_STATION.get(), IDisplayModifierRecipe.class);
         List<IDisplayModifierRecipe> cleanedList = new ArrayList<>();
-        java.util.Set<ModifierSignature> seen = new java.util.HashSet<>();
-
         for (IDisplayModifierRecipe recipe : jeiRecipes) {
             if (recipe instanceof ITinkerStationRecipe) {
-                ModifierEntry result = recipe.getDisplayResult();
-                ModifierSignature signature = new ModifierSignature(result.getModifier(), recipe.getSlots(), result.getLevel());
-                if (seen.add(signature)) {
-                    cleanedList.add(recipe);
-                }
+                boolean contains = cleanedList.stream().anyMatch(recipe1 -> {
+                    ModifierEntry result1 = recipe1.getDisplayResult();
+                    ModifierEntry result2 = recipe.getDisplayResult();
+
+                    return result1.getModifier().equals(result2.getModifier()) &&
+                            Objects.equals(recipe1.getSlots(), recipe.getSlots()) &&
+                            result1.getLevel() == result2.getLevel();
+                });
+                if (!contains) cleanedList.add(recipe);
             }
         }
         return cleanedList;

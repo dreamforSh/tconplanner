@@ -54,7 +54,7 @@ public class ArmorBlueprint extends BaseBlueprint<TCArmor> {
     }
 
     public static ArmorBlueprint fromNBT(CompoundTag tag) {
-        ResourceLocation armorRL = new ResourceLocation(tag.getString("armor"));
+        ResourceLocation armorRL = ResourceLocation.parse(tag.getString("armor"));
         Optional<TCArmor> optional = TCArmor.getArmors().stream()
                 .filter(armor -> Objects.equals(ForgeRegistries.ITEMS.getKey(armor.getItem()), armorRL)).findFirst();
         if (optional.isEmpty()) return null;

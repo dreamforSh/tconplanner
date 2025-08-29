@@ -25,7 +25,6 @@ public class TConPlanner {
         ModLoadingContext mlctx = ModLoadingContext.get();
         mlctx.registerExtensionPoint(IExtensionPoint.DisplayTest.class, () -> new IExtensionPoint.DisplayTest(() -> NetworkConstants.IGNORESERVERONLY, (a, b) -> true));
         mlctx.registerConfig(ModConfig.Type.CLIENT, Config.SPEC);
-
         FMLJavaModLoadingContext.get().getModEventBus().addListener(this::setupClient);
     }
 

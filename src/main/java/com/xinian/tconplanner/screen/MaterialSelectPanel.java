@@ -1,18 +1,21 @@
 package com.xinian.tconplanner.screen;
 
 import com.google.common.collect.Lists;
-import com.mojang.blaze3d.vertex.PoseStack;
+//import com.xinian.tconplanner.util.PinInMatch;
+import com.xinian.tconplanner.data.BaseBlueprint;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import com.xinian.tconplanner.data.BaseBlueprint;
+import com.xinian.tconplanner.data.Blueprint;
 import com.xinian.tconplanner.screen.buttons.IconButton;
 import com.xinian.tconplanner.screen.buttons.MatPageButton;
 import com.xinian.tconplanner.screen.buttons.MaterialButton;
-import com.xinian.tconplanner.util.JECharactersIntegration;
 import com.xinian.tconplanner.util.MaterialSort;
 import com.xinian.tconplanner.util.TranslationUtil;
+import net.minecraftforge.fml.ModList;
 import org.jetbrains.annotations.NotNull;
 import slimeknights.tconstruct.library.materials.MaterialRegistry;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
@@ -20,20 +23,16 @@ import slimeknights.tconstruct.library.materials.stats.IMaterialStats;
 import slimeknights.tconstruct.library.materials.stats.MaterialStatsId;
 import slimeknights.tconstruct.library.tools.part.IToolPart;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class MaterialSelectPanel extends PlannerPanel{
     private static final int materialPageSize = 3*9;
-
-    //搜索框
     private final EditBox searchBox;
 
     public MaterialSelectPanel(int x, int y, int width, int height, PlannerScreen parent) {
         super(x, y, width, height, parent);
-
         //搜索框位置
         int searchY = 90;
         this.searchBox = new EditBox(Minecraft.getInstance().font,
@@ -49,30 +48,27 @@ public class MaterialSelectPanel extends PlannerPanel{
         });
         addChild(this.searchBox);
 
-
         BaseBlueprint<?> blueprint = parent.blueprint;
-        //Add material list for the tool part
-        IToolPart part = (IToolPart) blueprint.toolParts[parent.selectedPart];
+        IToolPart part = blueprint.toolParts[parent.selectedPart];
+        //List<IMaterial> usable = MaterialRegistry.getMaterials().stream().filter(part::canUseMaterial).collect(Collectors.toList());
+        //获取材料命名
         List<IMaterial> usable = MaterialRegistry.getMaterials().stream()
                 .filter(part::canUseMaterial)
                 .filter(mat -> {
-                    if (parent.materialSearch == null || parent.materialSearch.isEmpty()) {
-                        return true;
-                    }
+                    if (parent.materialSearch == null || parent.materialSearch.isEmpty()) return true;
                     String search = parent.materialSearch.toLowerCase();
                     String id = mat.getIdentifier().toString().toLowerCase();
                     String translationKey = "material." + mat.getIdentifier().toString().replace(':', '.');
                     String name = Component.translatable(translationKey).getString().toLowerCase();
-                    if (id.contains(search) || name.contains(search)) {
-                        return true;
+                    // 先普通字符串搜索，再拼音搜索
+                    if (ModList.get().isLoaded("jecharacters")) {
+                       return id.contains(search) || name.contains(search) ||me.towdium.jecharacters.utils.Match.matches(name, search);
+                    } else {
+                        return id.contains(search) || name.contains(search);
                     }
-                    if (JECharactersIntegration.isLoaded()) {
-                        return JECharactersIntegration.matches(name, search);
-                    }
-                    return false;
+
                 })
                 .collect(Collectors.toList());
-
         MaterialStatsId statsId = part.getStatType();
         if(parent.sorter != null)usable.sort((o1, o2) -> parent.sorter.compare(o1, o2, statsId) * -1);
         int loopMin = parent.materialPage*materialPageSize;
@@ -80,11 +76,15 @@ public class MaterialSelectPanel extends PlannerPanel{
         for (int i = loopMin; i < loopMax; i++) {
             int posIndex = i - loopMin;
             IMaterial mat = usable.get(i);
-            MaterialButton data = new MaterialButton(mat, part.withMaterialForDisplay(mat.getIdentifier()), (posIndex % 9) * 18 + 8, 2 + (posIndex / 9) * 18, parent);
+            MaterialButton data = new MaterialButton(mat,
+                    part.withMaterialForDisplay(mat.getIdentifier()),
+                    (posIndex % 9) * 18 + 8,
+                    2 + (posIndex / 9) * 18,
+                    parent);
             if(blueprint.materials[parent.selectedPart] == mat)data.selected = true;
             addChild(data);
         }
-        //Add material pagination buttons
+
         MatPageButton leftPage = new MatPageButton(6, height - 30, -1, parent);
         MatPageButton rightPage = new MatPageButton(width - 6 - 37, height - 30, 1, parent);
         leftPage.active = parent.materialPage > 0;
@@ -102,22 +102,23 @@ public class MaterialSelectPanel extends PlannerPanel{
             int startX = width/2 - 6*sorts.size();
             for (int i = 0; i < sorts.size(); i++) {
                 MaterialSort<?> sort = sorts.get(i);
-                addChild(new IconButton(startX + i*12, height - 30 + 3, sort.icon(), TranslationUtil.createComponent("sort", sort.text()), parent, e -> parent.sort(sort))
-                        .withColor(sort == parent.sorter ? Color.WHITE : new Color(0.4f, 0.4f, 0.4f)).withSound(SoundEvents.PAINTING_PLACE));
+
+                addChild(new IconButton(startX + i*12, height - 30 + 3, sort.icon(), TranslationUtil.createComponent("sort", sort.text(), parent), parent, button -> parent.sort(sort))
+                        .withColor(sort == parent.sorter ? Color.WHITE : new Color(0.4f, 0.4f, 0.4f)).withSound(Holder.direct(SoundEvents.PAINTING_PLACE)));
             }
         }
     }
 
     @Override
-    public void render(@NotNull PoseStack poseStack, int mouseX, int mouseY, float partialTicks) {
+    public void render(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
         //先渲染panel的子控件，再把搜索框渲染到最上层，保证不会被覆盖
-        super.render(poseStack, mouseX, mouseY, partialTicks);
-        searchBox.render(poseStack, mouseX, mouseY, partialTicks);
+        super.render(graphics, mouseX, mouseY, partialTicks);
+        searchBox.render(graphics, mouseX, mouseY, partialTicks);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        //如果点击了搜索框，就把焦点给它，并返回true
+        //如果点击了搜索框，就把焦点给它，并返回true，消费事件，防止上层做额外刷新
         if (searchBox.mouseClicked(mouseX, mouseY, button)) {
             searchBox.setFocused(true);
             return true;

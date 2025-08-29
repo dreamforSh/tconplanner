@@ -5,11 +5,14 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.sounds.SoundManager;
-import net.minecraft.network.chat.*;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
 import com.xinian.tconplanner.data.ModifierInfo;
@@ -29,6 +32,7 @@ import slimeknights.tconstruct.library.tools.nbt.ToolStack;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class ModifierSelectButton extends Button {
@@ -44,9 +48,19 @@ public class ModifierSelectButton extends Button {
     private final List<ItemStack> recipeStacks = new ArrayList<>();
     private final Component levelText;
 
-
     public ModifierSelectButton(IDisplayModifierRecipe recipe, ModifierStateEnum state, @Nullable Component error, int level, PlannerScreen parent) {
-        super(0, 0, 100, 18, Component.literal(""), e -> {});
+        super(0, 0, 100, 18, Component.empty(), button -> {
+            ModifierSelectButton self = (ModifierSelectButton) button;
+            switch (self.state) {
+                case AVAILABLE, APPLIED -> {
+                    if (self.error == null) {
+                        self.parent.selectedModifier = new ModifierInfo(self.recipe);
+                        self.parent.refresh();
+                    }
+                }
+            }
+        }, DEFAULT_NARRATION);
+
         this.recipe = recipe;
         this.modifier = recipe.getDisplayResult().getModifier();
         this.parent = parent;
@@ -59,7 +73,6 @@ public class ModifierSelectButton extends Button {
         boolean hasLevels = !(modifier instanceof NoLevelsModifier);
         this.displayName = level == 0 || !hasLevels ? modifier.getDisplayName() : modifier.getDisplayName(level);
 
-
         MutableComponent tempLevelText = Component.literal(hasLevels ? String.valueOf(level) : "");
         if (error != null) {
             tempLevelText.withStyle(ChatFormatting.DARK_RED);
@@ -67,74 +80,82 @@ public class ModifierSelectButton extends Button {
         this.levelText = tempLevelText;
     }
 
+
     @Override
-    public void renderButton(@Nonnull PoseStack stack, int mouseX, int mouseY, float p_230431_4_) {
-        PlannerScreen.bindTexture();
+    public void renderWidget(@Nonnull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+
+        RenderSystem.setShaderTexture(0, PlannerScreen.TEXTURE);
         RenderSystem.enableBlend();
+
         switch (state) {
             case APPLIED -> RenderSystem.setShaderColor(0.5f, 1f, 0.5f, 1f);
             case UNAVAILABLE -> RenderSystem.setShaderColor(1f, 0.5f, 0.5f, 1f);
             default -> RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         }
-        parent.blit(stack, x, y, 0, 224, 100, 18);
-        if (isHoveredOrFocused()) {
-            Minecraft.getInstance().getItemRenderer().renderGuiItem(recipeStacks.get((int) ((System.currentTimeMillis() / 1000) % recipeStacks.size())), x + 1, y + 1);
-        } else {
-            ModifierIconManager.renderIcon(stack, modifier, x + 1, y + 1, 0, 16);
-        }
-        Font font = Minecraft.getInstance().font;
 
-        stack.pushPose();
-        stack.translate(x + 20, y + 2, 0);
+
+        guiGraphics.blit(PlannerScreen.TEXTURE, getX(), getY(), 0, 224, this.width, this.height);
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f); // Reset color after blit
+
+        if (isHoveredOrFocused()) {
+
+            guiGraphics.renderItem(recipeStacks.get((int) ((System.currentTimeMillis() / 1000) % recipeStacks.size())), getX() + 1, getY() + 1);
+        } else {
+
+            ModifierIconManager.renderIcon(guiGraphics, modifier, getX() + 1, getY() + 1, 100, 16);
+        }
+
+        Font font = Minecraft.getInstance().font;
+        PoseStack poseStack = guiGraphics.pose();
+
+        poseStack.pushPose();
+
+        poseStack.translate(getX() + 20, getY() + 2, 0);
         float nameWidth = font.width(displayName);
-        int maxWidth = width - 22;
+        int maxWidth = this.width - 22;
         if (nameWidth > maxWidth) {
             float scale = maxWidth / nameWidth;
-            stack.scale(scale, scale, 1);
+            poseStack.scale(scale, scale, 1);
         }
-        Screen.drawString(stack, font, displayName, 0, 0, 0xff_ff_ff_ff);
-        stack.popPose();
 
-        stack.pushPose();
-        stack.translate(x + 20, y + 11, 0);
-        stack.scale(0.5f, 0.5f, 1);
+        guiGraphics.drawString(font, displayName, 0, 0, 0xff_ff_ff_ff, false); // No shadow for better looks on custom bg
+        poseStack.popPose();
+
+        poseStack.pushPose();
+        poseStack.translate(getX() + 20, getY() + 11, 0);
+        poseStack.scale(0.5f, 0.5f, 1);
         if (recipe.getSlots() != null) {
             SlotType.SlotCount count = recipe.getSlots();
             MutableComponent text = count.count() == 1 ? TranslationUtil.createComponent("modifiers.usedslot", count.type().getDisplayName()) :
                     TranslationUtil.createComponent("modifiers.usedslots", count.count(), count.type().getDisplayName());
-            Screen.drawString(stack, font, text, 0, 0, 0xff_ff_ff_ff);
+            guiGraphics.drawString(font, text, 0, 0, 0xff_ff_ff_ff, false);
         }
-        stack.popPose();
+        poseStack.popPose();
 
-        stack.pushPose();
-        stack.translate(x + width - 1, y + 11, 0);
-        stack.scale(0.5f, 0.5f, 1);
-        Screen.drawString(stack, font, levelText, -font.width(levelText), 0, 0xff_ff_ff_ff);
-        stack.popPose();
-        if (isHovered) {
-            renderToolTip(stack, mouseX, mouseY);
+        poseStack.pushPose();
+        poseStack.translate(getX() + this.width - 1, getY() + 11, 0);
+        poseStack.scale(0.5f, 0.5f, 1);
+        guiGraphics.drawString(font, levelText, -font.width(levelText), 0, 0xff_ff_ff_ff, false);
+        poseStack.popPose();
+
+
+        if (this.isHovered) {
+            this.renderTooltip(guiGraphics, mouseX, mouseY);
         }
     }
 
-    @Override
-    public void renderToolTip(@Nonnull PoseStack stack, int mouseX, int mouseY) {
-        parent.postRenderTasks.add(() -> {
-            List<Component> tooltips = new ArrayList<>(modifier.getDescriptionList());
-            if (error != null) tooltips.add(error.copy().withStyle(ERROR_STYLE));
-            parent.renderComponentTooltip(stack, tooltips, mouseX, mouseY);
-        });
+
+    public void renderTooltip(@Nonnull GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        List<Component> tooltips = new ArrayList<>(modifier.getDescriptionList());
+        if (error != null) tooltips.add(error.copy().withStyle(ERROR_STYLE));
+
+        parent.renderComponentTooltip(guiGraphics, tooltips, mouseX, mouseY);
     }
 
     @Override
     public void onPress() {
-        switch (state) {
-            case AVAILABLE, APPLIED -> {
-                if (error == null) {
-                    parent.selectedModifier = new ModifierInfo(recipe);
-                    parent.refresh();
-                }
-            }
-        }
+
+        super.onPress();
     }
 
     @Override
@@ -151,21 +172,18 @@ public class ModifierSelectButton extends Button {
         ITinkerStationRecipe tsrecipe = (ITinkerStationRecipe) recipe;
         Modifier modifier = recipe.getDisplayResult().getModifier();
         int currentLevel = tstack.getModifierLevel(modifier);
-
-        RecipeResult<ItemStack> recipeResult = tsrecipe.getValidatedResult(new DummyTinkersStationInventory(stack));
+        RegistryAccess registryAccess = Minecraft.getInstance().level.registryAccess();
+        RecipeResult<?> recipeResult = tsrecipe.getValidatedResult(new DummyTinkersStationInventory(stack),registryAccess);
 
         ModifierStateEnum mstate;
         Component error = null;
 
         if (currentLevel > 0) {
-
             mstate = ModifierStateEnum.APPLIED;
-
             if (!recipeResult.isSuccess() && recipeResult.hasError()) {
                 error = recipeResult.getMessage();
             }
         } else {
-
             if (recipeResult.isSuccess()) {
                 mstate = ModifierStateEnum.AVAILABLE;
             } else {
@@ -175,7 +193,6 @@ public class ModifierSelectButton extends Button {
                 }
             }
         }
-
         return new ModifierSelectButton(recipe, mstate, error, currentLevel, screen);
     }
 }

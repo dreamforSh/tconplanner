@@ -18,7 +18,9 @@ public class ToolSelectPanel extends PlannerPanel{
         addChild(toolsGroup);
         for (int i = 0; i < tools.size(); i++) {
             TCTool tool = tools.get(i);
-            toolsGroup.addChild(new ToolTypeButton(i, tool, parent));
+            ToolTypeButton button = new ToolTypeButton(i, tool, parent);
+//            toolsGroup.addChild(new ToolTypeButton(i, tool, parent));
+            toolsGroup.addPageChild(button);
         }
         toolsGroup.refresh();
     }

@@ -3,6 +3,7 @@ package com.xinian.tconplanner.data;
 import com.xinian.tconplanner.api.IPlannable;
 import com.xinian.tconplanner.util.DummyTinkersStationInventory;
 import com.xinian.tconplanner.util.ModifierStack;
+import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
@@ -88,13 +89,15 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
         return Arrays.stream(materials).noneMatch(Objects::isNull);
     }
 
-    public RecipeResult<ItemStack> validate() {
+    public RecipeResult<?> validate() {
         ToolStack ts = ToolStack.from(createOutput(false));
-        RecipeResult<ItemStack> result = null;
+        //
+        RecipeResult<?> result = null;
 
         for (ModifierInfo info : modStack.getStack()) {
             IDisplayModifierRecipe recipe = info.recipe;
-            RecipeResult<ItemStack> rs = ((ITinkerStationRecipe) recipe).getValidatedResult(new DummyTinkersStationInventory(ts.createStack()));
+            //
+            RecipeResult<?> rs = ((ITinkerStationRecipe) recipe).getValidatedResult(new DummyTinkersStationInventory(ts.createStack()), Minecraft.getInstance().level.registryAccess());
             if (rs.hasError()) {
                 result = rs;
                 break;

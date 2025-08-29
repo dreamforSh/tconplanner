@@ -1,6 +1,7 @@
 package com.xinian.tconplanner.api;
 
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
@@ -13,7 +14,6 @@ import slimeknights.tconstruct.library.tools.definition.ToolDefinition;
 import slimeknights.tconstruct.library.tools.definition.module.material.ToolPartsHook;
 import slimeknights.tconstruct.library.tools.helper.ToolBuildHandler;
 import slimeknights.tconstruct.library.tools.item.IModifiable;
-import slimeknights.tconstruct.library.tools.layout.LayoutSlot;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -108,9 +108,9 @@ public class TCArmor implements IPlannable {
     }
 
     private static void findArmorsForSlot(List<TCArmor> armorList, EquipmentSlot slot, TagKey<Item> tag) {
-        Registry.ITEM.getTagOrEmpty(tag).forEach(itemHolder -> {
+        BuiltInRegistries.ITEM.getTagOrEmpty(tag).forEach(itemHolder -> {
             Item item = itemHolder.value();
-            ResourceLocation id = Registry.ITEM.getKey(item);
+            ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
             if (item instanceof IModifiable && !ARMOR_BLACKLIST.contains(id)) {
                 armorList.add(new TCArmor(item, slot));
             }

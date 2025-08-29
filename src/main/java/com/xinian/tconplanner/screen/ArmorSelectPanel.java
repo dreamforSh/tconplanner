@@ -8,7 +8,7 @@ import com.xinian.tconplanner.util.TranslationUtil;
 
 import java.util.List;
 
-public class ArmorSelectPanel extends PlannerPanel {
+public class ArmorSelectPanel extends PlannerPanel{
 
     public ArmorSelectPanel(int x, int y, int width, int height, List<TCArmor> armors, PlannerScreen parent) {
         super(x, y, width, height, parent);
@@ -18,7 +18,9 @@ public class ArmorSelectPanel extends PlannerPanel {
         addChild(armorsGroup);
         for (int i = 0; i < armors.size(); i++) {
             TCArmor armor = armors.get(i);
-            armorsGroup.addChild(new ArmorTypeButton(i, armor, parent));
+            ArmorTypeButton button = new ArmorTypeButton(i, armor, parent);
+            armorsGroup.addPageChild(button);
+            //armorsGroup.addChild(new ArmorTypeButton(i, armor, parent));
         }
         armorsGroup.refresh();
     }
