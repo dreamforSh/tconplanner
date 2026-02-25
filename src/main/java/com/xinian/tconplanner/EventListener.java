@@ -20,6 +20,7 @@ import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import com.xinian.tconplanner.data.Blueprint;
+import com.xinian.tconplanner.data.BaseBlueprint;
 import com.xinian.tconplanner.data.PlannerData;
 import com.xinian.tconplanner.screen.PlannerScreen;
 import com.xinian.tconplanner.screen.buttons.BookmarkedButton;
@@ -44,6 +45,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -74,7 +76,6 @@ public class EventListener {
         }
     }
 
-
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post e) {
         postRenderQueue.clear();
@@ -101,24 +102,23 @@ public class EventListener {
 
             e.addListener(new ExtIconButton(importX, importY, importIcon, TranslationUtil.createComponent("importtool"), action -> {
                 Slot slot = screen.getMenu().getSlot(0);
-                if (slot.hasItem()) {
+                if (!slot.getItem().isEmpty()) {
                     mc.setScreen(new PlannerScreen(screen, ToolStack.from(slot.getItem())));
                 }
             }, screen).withEnabledFunc(() -> {
                 if (layout == null || !layout.isMain()) return false;
                 Slot slot = screen.getMenu().getSlot(0);
-                return slot.hasItem() && ToolStack.isInitialized(slot.getItem());
+                return !slot.getItem().isEmpty() && ToolStack.isInitialized(slot.getItem());
             }));
             if (data.starred != null) {
                 List<Component> tooltip = new ArrayList<>();
-                tooltip.add(Component.literal("---------").withStyle(ChatFormatting.GRAY));
+                tooltip.add(Component.literal("---------").withStyle(ChatFormatting.GRAY)); // <<-- 变更点 3
                 tooltip.add(TranslationUtil.createComponent("star.move").withStyle(ChatFormatting.GOLD));
                 tooltip.add(TranslationUtil.createComponent("star.ext_remove").withStyle(ChatFormatting.RED));
 
                 e.addListener(new ExtItemStackButton(screen.cornerX + 83, screen.cornerY + 58, data.starred.createOutput(), tooltip, btn -> {
                     if (Screen.hasShiftDown()) {
-                        btn.visible = false;
-                        btn.active = false;
+                        btn.visible = btn.active = false;
                         starredLayout = false;
                         data.starred = null;
                         try {
@@ -126,10 +126,12 @@ public class EventListener {
                         } catch (IOException ex) {
                             throw new RuntimeException(ex);
                         }
-                    } else {
-                        movePartsToSlots(screen, mc, data.starred);
+                    }else{
+                        if (data.starred instanceof Blueprint toolBlueprint) {
+                            movePartsToSlots(screen, mc, toolBlueprint);
+                        }
                     }
-                }));
+                }, screen));
             }
         }
     }
@@ -137,10 +139,10 @@ public class EventListener {
     @SubscribeEvent
     public static void onScreenDraw(ScreenEvent.Render.Post e) {
         if (e.getScreen() instanceof TinkerStationScreen screen) {
-            GuiGraphics guiGraphics = e.getGuiGraphics();
-            PoseStack ms = guiGraphics.pose();
+            GuiGraphics ms = e.getGuiGraphics();
+            PoseStack poseStack = ms.pose();
             if (starredLayout) {
-                Blueprint starred = TConPlanner.DATA.starred;
+                Blueprint starred = (Blueprint)TConPlanner.DATA.starred;
                 ItemStack carried = screen.getMenu().getCarried();
                 for (int i = 0; i < layout.getInputSlots().size(); i++) {
                     LayoutSlot slot = layout.getInputSlots().get(i);
@@ -150,31 +152,25 @@ public class EventListener {
                     ItemStack stack = screen.getMenu().getSlot(i + 1).getItem();
                     MaterialId material = starred.materials[i].getIdentifier();
                     if (stack.isEmpty()) {
-                        ms.pushPose();
-                        ms.translate(0, 0, 101);
+                        poseStack.pushPose();
+                        poseStack.translate(0, 0, 101);
                         int color = carried.isEmpty() ? 0x5a000050 : isValidToolPart(carried, part, material) ? 0x5ae8b641 : 0x5aff0000;
-                        guiGraphics.fill(slotX, slotY, slotX + 16, slotY + 16, color);
-                        ms.popPose();
-                        if (hovered) {
-                            guiGraphics.renderComponentTooltip(screen.getMinecraft().font, Lists.newArrayList(TranslationUtil.createComponent("star.slot.missing").withStyle(ChatFormatting.DARK_RED), part.withMaterialForDisplay(material).getDisplayName()), e.getMouseX(), e.getMouseY());
-                        }
+                        ms.fillGradient(slotX, slotY, slotX + 16, slotY + 16, color, color);
+                        poseStack.popPose();
                     } else if (!material.equals(part.getMaterial(stack).getId())) {
-                        ms.pushPose();
-                        ms.translate(0, 0, 101);
-                        guiGraphics.fill(slotX, slotY, slotX + 16, slotY + 16, 0x7aff0000);
-                        ms.popPose();
-                        if (hovered) {
-                            guiGraphics.renderComponentTooltip(screen.getMinecraft().font, Lists.newArrayList(TranslationUtil.createComponent("star.slot.incorrect").withStyle(ChatFormatting.DARK_RED), part.withMaterialForDisplay(material).getDisplayName()), e.getMouseX(), e.getMouseY() - 30);
-                        }
+                        poseStack.pushPose();
+                        poseStack.translate(0, 0, 101);
+                        ms.fillGradient(slotX, slotY, slotX + 16, slotY + 16, 0x7aff0000, 0x7aff0000);
+                        poseStack.popPose();
                     }
                 }
             }
             if(starredButton != null){
-                ms.pushPose();
-                ms.translate(starredButton.getX() + 10, starredButton.getY() + 10, 105);
-                ms.scale(0.5f, 0.5f, 1);
-                BookmarkedButton.STAR_ICON.render(guiGraphics, 0, 0);
-                ms.popPose();
+                poseStack.pushPose();
+                poseStack.translate(starredButton.x + 10, starredButton.y + 10, 105);
+                poseStack.scale(0.5f, 0.5f, 1);
+                BookmarkedButton.STAR_ICON.render(screen, ms, 0, 0);
+                poseStack.popPose();
             }
 
             while(!postRenderQueue.isEmpty()) {
@@ -184,7 +180,7 @@ public class EventListener {
     }
 
     @SubscribeEvent
-    public static void onScreenDrawPre(ScreenEvent.Render.Pre e) {
+    public static void onScreenDraw(ScreenEvent.Render.Pre e) {
         if(e.getScreen() instanceof TinkerStationScreen){
             postRenderQueue.clear();
             updateLayout((TinkerStationScreen) e.getScreen(), forceNextUpdate);
@@ -194,13 +190,13 @@ public class EventListener {
     private static void updateLayout(TinkerStationScreen screen, boolean force) {
         try {
             StationSlotLayout newLayout = (StationSlotLayout) currentLayoutField.get(screen);
-            if(!force && newLayout == layout) return;
+            if(!force && newLayout == layout)return;
             forceNextUpdate = false;
             layout = newLayout;
             PlannerData data = TConPlanner.DATA;
             boolean foundButton = false;
-            if(data.starred != null){
-                StationSlotLayout starredSlotLayout = data.starred.tool.getLayout();
+            if(data.starred instanceof Blueprint toolBlueprint){
+                StationSlotLayout starredSlotLayout = toolBlueprint.plannable.getLayout();
                 starredLayout = layout == starredSlotLayout;
                 for (SlotButtonItem button : buttonScreen.getButtons()) {
                     if(starredSlotLayout == button.getLayout()){
@@ -219,8 +215,8 @@ public class EventListener {
     }
 
     private static void movePartsToSlots(TinkerStationScreen screen, Minecraft mc, Blueprint starred){
-        if(layout == null || starred.tool.getLayout() != layout){
-            screen.onToolSelection( starred.tool.getLayout());
+        if(layout == null || starred.plannable.getLayout() != layout){
+            screen.onToolSelection(starred.plannable.getLayout());
             updateLayout(screen, true);
         }
         Player player = mc.player;
@@ -233,11 +229,11 @@ public class EventListener {
             if(tconSlot.getItem().isEmpty() && mc.player != null){
                 for(int j = 0; j < container.slots.size(); j++){
                     Slot loopSlot = container.slots.get(j);
-                    if(!(loopSlot.container instanceof Inventory)) continue;
+                    if(!(loopSlot.container instanceof Inventory))continue;
                     ItemStack stackInInv = loopSlot.getItem();
                     if(isValidToolPart(stackInInv, starred.toolParts[i], material)){
-                        handleMouseClick(pc, player, container, j, 0);
-                        handleMouseClick(pc, player, container, i + 1, 1);
+                        handleMouseClick(pc, player, container, j, 0, ClickType.PICKUP);
+                        handleMouseClick(pc, player, container, i + 1, 1, ClickType.PICKUP);
                         break;
                     }
                 }
@@ -245,14 +241,13 @@ public class EventListener {
         }
     }
 
-    private static void handleMouseClick(MultiPlayerGameMode pc, Player player, AbstractContainerMenu container, int slot, int mouseButton){
-        pc.handleInventoryMouseClick(container.containerId, slot, mouseButton, ClickType.PICKUP, player);
+    private static void handleMouseClick(MultiPlayerGameMode pc, Player player, AbstractContainerMenu container, int slot, int mouseButton, ClickType clickType){
+        pc.handleInventoryMouseClick(container.containerId, slot, mouseButton, clickType, player);
     }
 
     private static boolean isValidToolPart(ItemStack stack, IToolPart part, MaterialId material){
-        if (stack.getItem() instanceof ToolPartItem toolPartItem) {
-            return part.asItem() == toolPartItem && material.equals(toolPartItem.getMaterial(stack).getId());
-        }
-        return false;
+        return stack.getItem() instanceof ToolPartItem toolPart
+                && part.asItem() == toolPart
+                && material.equals(toolPart.getMaterial(stack).getId());
     }
 }

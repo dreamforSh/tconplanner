@@ -1,32 +1,26 @@
 package com.xinian.tconplanner.util;
 
-import com.xinian.tconplanner.TConPlanner;
-import net.minecraft.client.gui.GuiGraphics; // 1. Import GuiGraphics
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.resources.ResourceLocation;
-
-// Removed unused imports: PoseStack, Screen, RenderSystem, GameRenderer
+import com.xinian.tconplanner.TConPlanner;
 
 public class Icon {
     private static final ResourceLocation ICONS = new ResourceLocation(TConPlanner.MODID, "textures/gui/icons.png");
 
     private final int x, y;
 
-    public Icon(int x, int y) {
+    public Icon(int x, int y){
         this.x = x;
         this.y = y;
     }
 
-    /**
-     * Renders the icon using the modern GuiGraphics context.
-     * @param guiGraphics The graphics context to render with.
-     * @param screenX The destination X coordinate on the screen.
-     * @param screenY The destination Y coordinate on the screen.
-     */
-    // 2. Changed method signature to accept GuiGraphics.
-    public void render(GuiGraphics guiGraphics, int screenX, int screenY) {
-        // 3. Replaced screen.blit with guiGraphics.blit.
-        // The new blit method takes the texture ResourceLocation as the first parameter,
-        // which simplifies the call by removing the need for separate RenderSystem calls.
-        guiGraphics.blit(ICONS, screenX, screenY, this.x * 12, this.y * 12, 12, 12);
+    public void render(Screen screen, GuiGraphics graphics, int x, int y){
+        RenderSystem.setShader(GameRenderer::getPositionTexShader);
+        RenderSystem.setShaderTexture(0, ICONS);
+        graphics.blit(ICONS, x, y, this.x*12, this.y*12, 12, 12);
     }
 }

@@ -18,16 +18,15 @@ import org.jetbrains.annotations.NotNull;
 import slimeknights.tconstruct.library.tools.nbt.ToolStack;
 import slimeknights.tconstruct.library.tools.part.IToolPart;
 
+import com.xinian.tconplanner.data.BaseBlueprint;
 import java.util.List;
 
-public class ToolTopPanel extends PlannerPanel{
+public class BlueprintTopPanel extends PlannerPanel{
 
-    public ToolTopPanel(int x, int y, int width, int height, ItemStack result, ToolStack tool, PlannerData data, PlannerScreen parent) {
+    public BlueprintTopPanel(int x, int y, int width, int height, ItemStack result, ToolStack tool, PlannerData data, PlannerScreen parent) {
         super(x, y, width, height, parent);
 
-        if (!(parent.blueprint instanceof Blueprint blueprint)) {
-            return;
-        }
+        BaseBlueprint<?> blueprint = parent.blueprint;
         List<TCSlotPos> positions = blueprint.plannable.getSlotPos();
         for(int i = 0; i < blueprint.materials.length; i++){
             TCSlotPos pos = positions.get(i);
@@ -77,7 +76,7 @@ public class ToolTopPanel extends PlannerPanel{
         poseStack.pushPose();
         poseStack.translate(toolX, toolY, 0);
         poseStack.scale(3.7F, 3.7F, 1.0F);
-        graphics.renderItem(parent.blueprint.toolStack, 0, 0);
+        graphics.renderItem(parent.blueprint.plannable.getRenderStack(), 0, 0);
         poseStack.popPose();
         
         super.render(graphics, mouseX, mouseY, p_230430_4_);

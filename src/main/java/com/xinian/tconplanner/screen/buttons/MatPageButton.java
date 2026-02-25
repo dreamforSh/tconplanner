@@ -1,37 +1,28 @@
 package com.xinian.tconplanner.screen.buttons;
 
-import com.xinian.tconplanner.screen.PlannerScreen;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Button.CreateNarration;
 import net.minecraft.network.chat.Component;
-import org.jetbrains.annotations.NotNull;
+import com.xinian.tconplanner.screen.PlannerScreen;
 
-public class MatPageButton extends Button {
-    private final boolean right;
+public class MatPageButton extends Button
+        {
+private final boolean right;
+private final PlannerScreen parent;
+public MatPageButton(int x, int y, int change, PlannerScreen parent) {
+    super(x, y, 38, 20, Component.literal(""), button -> {parent.materialPage += change; parent.refresh();}, DEFAULT_NARRATION);  // 变更：new TextComponent("") -> Component.literal("")
+    right = change > 0;
+    this.parent = parent;
+}
 
-    public MatPageButton(int x, int y, int change, PlannerScreen parent) {
-        super(x, y, 38, 20, Component.literal(""), button -> {
-            parent.materialPage += change;
-            parent.refresh();
-        }, DEFAULT_NARRATION);
-        this.right = change > 0;
-    }
+private static final CreateNarration DEFAULT_NARRATION = (p_253298_) -> p_253298_.get();
 
-    @Override
-    public void renderWidget(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+@Override
+public void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    PlannerScreen.bindTexture();
+    parent.blit(graphics, x, y, right ? 176 : 214, active ? 20 : 0, width, height);
+}
 
-        int u = this.right ? 176 : 214;
-        int v = this.active ? 20 : 0;
-
-
-        guiGraphics.blit(
-                PlannerScreen.TEXTURE,
-                this.getX(),
-                this.getY(),
-                u,
-                v,
-                this.width,
-                this.height
-        );
-    }
 }

@@ -1,6 +1,6 @@
 package com.xinian.tconplanner.screen.buttons;
 
-import com.xinian.tconplanner.screen.PlannerScreen;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -8,72 +8,66 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
-import org.jetbrains.annotations.NotNull;
+import com.xinian.tconplanner.screen.PlannerScreen;
 
 import java.util.function.Consumer;
 
 public class SliderWidget extends AbstractWidget {
 
+    private final PlannerScreen parent;
     private final Consumer<Integer> listener;
     private final int min, max;
     private double percent;
     private int value;
 
-    // 已移除未使用的 'parent' 参数
-    public SliderWidget(int x, int y, int width, int height, Consumer<Integer> listener, int min, int max, int value) {
+    public SliderWidget(int x, int y, int width, int height, Consumer<Integer> listener, int min, int max, int value, PlannerScreen parent) {
         super(x, y, width, height, Component.literal(""));
+        this.parent = parent;
         this.listener = listener;
         this.min = min;
         this.max = max;
         this.value = value;
-        // 添加一个检查防止除以零
-        this.percent = (this.max == this.min) ? 0.0 : (double)(this.value - this.min) / (this.max - this.min);
+        percent = (value - min)/(double)(max-min);
     }
 
     @Override
-    public void renderWidget(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        int center = this.getY() + this.getHeight() / 2;
-        for (int dx = this.getX() - 2; dx < this.getX() + this.getWidth() + 2; dx++) {
-            graphics.blit(PlannerScreen.TEXTURE, dx, center - 2, 176, 78, 1, 4);
+    public void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        PoseStack stack = graphics.pose();
+        int center = y + height/2;
+        PlannerScreen.bindTexture();
+        for(int dx = x - 2; dx < x + width + 2; dx++){
+            parent.blit(graphics, dx, center - 2, 176, 78, 1, 4);
         }
-        int sliderX = this.getX() + (int) (this.getWidth() * this.percent);
-        graphics.blit(PlannerScreen.TEXTURE, sliderX - 2, this.getY(), 178, 78, 4, 20);
-
+        int sliderX = x + (int)(width*percent);
+        parent.blit(graphics, sliderX - 2, y, 178, 78, 4, 20);
         Font font = Minecraft.getInstance().font;
-        String minStr = String.valueOf(this.min);
-        String maxStr = String.valueOf(this.max);
-        String valueStr = String.valueOf(this.value);
-
-        int minValSize = font.width(minStr);
-        graphics.drawString(font, minStr, this.getX() - minValSize - 5, this.getY() + 6, 0xFFFFFFFF);
-        graphics.drawString(font, maxStr, this.getX() + this.getWidth() + 5, this.getY() + 6, 0xFFFFFFFF);
-        graphics.drawString(font, valueStr, sliderX - font.width(valueStr) / 2, this.getY() + 22, 0xFFFFFFFF);
+        int minValSize = font.width(min + "");
+        graphics.drawString(font, min + "", x - minValSize - 5, y + 6, 0xff_ff_ff_ff);
+        graphics.drawString(font, max + "", x + width + 5, y + 6, 0xff_ff_ff_ff);
+        graphics.drawCenteredString(font, value + "", sliderX, y + 22, 0xff_ff_ff_ff);
     }
 
     @Override
     public void onClick(double mx, double my) {
-        this.updateVal(mx);
+        updateVal(mx);
     }
 
     @Override
-    protected void onDrag(double mx, double my, double dx, double dy) {
-        if (mx >= this.getX() - 5 && my >= this.getY() && mx <= this.getX() + this.getWidth() + 5 && my <= this.getY() + this.getHeight()) {
-            this.updateVal(mx);
+    public void onDrag(double mx, double my, double dx, double dy) {
+        if(mx >= x - 5 && my >= y && mx <= x + width + 5 && my <= y + width) {
+            updateVal(mx);
         }
     }
 
-    private void updateVal(double mouseX) {
-        this.percent = Mth.clamp((mouseX - this.getX()) / this.getWidth(), 0, 1);
-        int oldVal = this.value;
-        this.value = (int)Math.round(Mth.lerp(this.percent, this.min, this.max));
-        if (this.value != oldVal) {
-            this.listener.accept(this.value);
-        }
+    private void updateVal(double mouseX){
+        percent = Mth.clamp((mouseX - x)/width, 0, 1);
+        int oldVal = value;
+        value = (int)Mth.clamp((max-min)*percent + min, min, max);
+        if(value != oldVal)listener.accept(value);
     }
-
 
     @Override
-    public void updateWidgetNarration(@NotNull NarrationElementOutput narrationElementOutput) {
-
+    public void updateWidgetNarration(NarrationElementOutput p_169152_) {
+        // No narration needed
     }
 }

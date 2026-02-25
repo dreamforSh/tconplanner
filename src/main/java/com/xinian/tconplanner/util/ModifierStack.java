@@ -53,8 +53,7 @@ public class ModifierStack {
         return (int) stack.stream().filter(info1 -> info1.modifier.equals(modifier)).count();
     }
 
-    // 1. Correct the typo in the method name for better readability.
-    public void applyIncrements(ToolStack tool){
+    public void applyIncrementals(ToolStack tool){
         stack.stream().distinct().forEach(info -> {
             Modifier mod = info.modifier;
             int amount = ModifierRecipeLookup.getNeededPerLevel(mod.getId());
@@ -94,16 +93,15 @@ public class ModifierStack {
     public void fromNBT(CompoundTag tag){
         stack.clear();
         incrementalDiffMap.clear();
-        ListTag modList = tag.getList("mods", 8); // TAG_STRING
+        ListTag modList = tag.getList("mods", 8);
         Map<ResourceLocation, IDisplayModifierRecipe> recipesMap = PlannerScreen.getModifierRecipes().stream().collect(Collectors.toMap(recipe -> ((ITinkerStationRecipe)recipe).getId(), recipe -> recipe));
         for(int i = 0; i < modList.size(); i++){
-            // 2. Replace ResourceLocation.parse() with the constructor new ResourceLocation().
             ResourceLocation resourceLocation = new ResourceLocation(modList.getString(i));
             if(recipesMap.containsKey(resourceLocation)) {
                 push(new ModifierInfo(recipesMap.get(resourceLocation)));
             }
         }
-        ListTag diffList = tag.getList("diff", 10); // TAG_COMPOUND
+        ListTag diffList = tag.getList("diff", 10);
         for(int i = 0; i < diffList.size(); i++){
             CompoundTag diffNBT = diffList.getCompound(i);
             ModifierId modId = new ModifierId(diffNBT.getString("mod"));

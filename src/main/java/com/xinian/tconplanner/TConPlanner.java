@@ -9,6 +9,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.network.NetworkConstants;
 import com.xinian.tconplanner.data.PlannerData;
+import com.xinian.tconplanner.data.BlueprintIO;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -33,6 +34,7 @@ public class TConPlanner {
         File gameDir = Minecraft.getInstance().gameDirectory;
         File folder = new File(gameDir, MODID);
         DATA = new PlannerData(folder);
+        BlueprintIO.init(folder);
     }
 
 

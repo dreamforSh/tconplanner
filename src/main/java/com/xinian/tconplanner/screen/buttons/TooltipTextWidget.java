@@ -1,5 +1,6 @@
 package com.xinian.tconplanner.screen.buttons;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -16,7 +17,7 @@ import java.util.List;
 public class TooltipTextWidget extends AbstractWidget {
 
     private final PlannerScreen parent;
-    private int color = 0xffffffff;
+    private int color = 0xff_ff_ff_ff;
     private final Font font;
     private final List<Component> tooltip;
 
@@ -34,13 +35,11 @@ public class TooltipTextWidget extends AbstractWidget {
         super(x, y, 0, 0, text);
         this.parent = parent;
         this.tooltip = tooltip;
-        this.font = Minecraft.getInstance().font;
-        this.setWidth(this.font.width(text));
-        this.setHeight(this.font.lineHeight);
-
-        // 1. 使用 setX() 和 getX() 来修改坐标
+        font = Minecraft.getInstance().font;
+        setWidth(font.width(text));
+        setHeight(font.lineHeight);
         if(pos == TextPosEnum.CENTER){
-            this.setX(this.getX() - this.getWidth() / 2);
+            this.x -= getWidth()/2;
         }
     }
 
@@ -54,39 +53,33 @@ public class TooltipTextWidget extends AbstractWidget {
         return this;
     }
 
-
     @Override
-    public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-
-        guiGraphics.drawString(this.font, getMessage(), this.getX(), this.getY(), this.color);
-
-
-        if(this.isHoveredOrFocused()){
-
-            parent.postRenderTasks.add(() -> parent.renderComponentTooltip(guiGraphics, tooltip, mouseX, mouseY));
+    public void renderWidget(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.drawString(font, getMessage(), x, y, color);
+        if(isHoveredOrFocused()){
+            renderToolTip(graphics, mouseX, mouseY);
         }
     }
 
+    public void renderToolTip(GuiGraphics graphics, int mouseX, int mouseY) {
+        parent.postRenderTasks.add(() -> parent.renderComponentTooltip(graphics, tooltip, mouseX, mouseY));
+    }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int mouseButton) {
         if (this.active && this.visible) {
-
             return clicked(mouseX, mouseY) && onClick != null && onClick.onClick(mouseX, mouseY, mouseButton);
         } else {
             return false;
         }
     }
 
-
-    public interface IOnTooltipTextWidgetClick {
-        boolean onClick(double mouseX, double mouseY, int mouseButton);
+    @Override
+    public void updateWidgetNarration(NarrationElementOutput p_169152_) {
+        // No narration needed
     }
 
-
-    @Override
-    protected void updateWidgetNarration(@NotNull NarrationElementOutput narrationElementOutput) {
-         //this.defaultButtonNarrationText(narrationElementOutput)
-
+    public static interface IOnTooltipTextWidgetClick {
+        boolean onClick(double mouseX, double mouseY, int mouseButton);
     }
 }

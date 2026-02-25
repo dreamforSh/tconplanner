@@ -1,5 +1,6 @@
 package com.xinian.tconplanner.screen;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -9,111 +10,90 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class PlannerPanel extends AbstractWidget {
+public class PlannerPanel extends AbstractWidget {
 
     protected final List<AbstractWidget> children = new ArrayList<>();
     protected final PlannerScreen parent;
 
     public PlannerPanel(int x, int y, int width, int height, PlannerScreen parent) {
-        super(x, y, width, height, Component.empty());
+        super(x, y, width, height, Component.literal(""));  // 变更：new TextComponent("") -> Component.literal("")
         this.parent = parent;
     }
 
-    public void addChild(AbstractWidget widget) {
-
-        widget.setX(this.getX() + widget.getX());
-        widget.setY(this.getY() + widget.getY());
-        this.children.add(widget);
+    public void addChild(AbstractWidget widget){
+        widget.x += x;
+        widget.y += y;
+        children.add(widget);
     }
 
-
     @Override
-    public void renderWidget(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-
+    public void renderWidget(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        this.isHovered = mouseX >= this.x && mouseY >= this.y && mouseX < this.x + this.width && mouseY < this.y + this.height;
         for (AbstractWidget child : children) {
-
-            child.render(guiGraphics, mouseX, mouseY, partialTick);
+            child.render(graphics, mouseX, mouseY, partialTick);
         }
     }
 
-
     @Override
-    protected void updateWidgetNarration(@NotNull NarrationElementOutput p_259886_) {
-
+    public void updateWidgetNarration(NarrationElementOutput p_169152_) {
+        // No narration needed for panels
     }
 
-
-
-    @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        boolean result = isHoveredOrFocused();
         for (AbstractWidget child : children) {
-            if (child.mouseClicked(mouseX, mouseY, button)) {
-                return true;
-            }
+            if(child.mouseClicked(mouseX, mouseY, button))result = true;
         }
-
-        return super.mouseClicked(mouseX, mouseY, button);
+        return result;
     }
 
-    @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean mouseReleased(double mouseX, double mouseY, int p_231048_5_) {
+        boolean result = false;
         for (AbstractWidget child : children) {
-            if (child.mouseReleased(mouseX, mouseY, button)) {
-                return true;
-            }
+            if(child.mouseReleased(mouseX, mouseY, p_231048_5_))result = true;
         }
-        return false;
+        return result;
     }
 
-    @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+    public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
+        boolean result = false;
         for (AbstractWidget child : children) {
-            if (child.mouseDragged(mouseX, mouseY, button, dragX, dragY)) {
-                return true;
-            }
+            if(child.mouseDragged(mx, my, button, dx, dy))result = true;
         }
-        return false;
+        return result;
     }
 
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scroll) {
+        boolean result = false;
         for (AbstractWidget child : children) {
-            if (child.isMouseOver(mouseX, mouseY)) {
-                if (child.mouseScrolled(mouseX, mouseY, delta)) {
-                    return true;
-                }
+            if(child.isMouseOver(mouseX, mouseY)) {
+                if (child.mouseScrolled(mouseX, mouseY, scroll)) result = true;
             }
         }
-        return false;
+        return result;
     }
 
-    @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(int p_231046_1_, int p_231046_2_, int p_231046_3_) {
+        boolean result = false;
         for (AbstractWidget child : children) {
-            if (child.keyPressed(keyCode, scanCode, modifiers)) {
-                return true;
-            }
+            if(child.keyPressed(p_231046_1_, p_231046_2_, p_231046_3_))result = true;
         }
-        return false;
+        return result;
     }
 
-    @Override
-    public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+    public boolean keyReleased(int p_223281_1_, int p_223281_2_, int p_223281_3_) {
+        boolean result = false;
         for (AbstractWidget child : children) {
-            if (child.keyReleased(keyCode, scanCode, modifiers)) {
-                return true;
-            }
+            if(child.keyReleased(p_223281_1_, p_223281_2_, p_223281_3_))result = true;
         }
-        return false;
+        return result;
     }
 
-    @Override
-    public boolean charTyped(char codePoint, int modifiers) {
+    public boolean charTyped(char p_231042_1_, int p_231042_2_) {
+        boolean result = false;
         for (AbstractWidget child : children) {
-            if (child.charTyped(codePoint, modifiers)) {
-                return true;
-            }
+            if(child.charTyped(p_231042_1_, p_231042_2_))result = true;
         }
-        return false;
+        return result;
     }
 }

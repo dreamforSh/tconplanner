@@ -1,36 +1,36 @@
 package com.xinian.tconplanner.screen.buttons;
 
-import com.xinian.tconplanner.screen.PlannerScreen;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
+import com.xinian.tconplanner.screen.PlannerScreen;
 import org.jetbrains.annotations.NotNull;
 
 public class BannerWidget extends AbstractWidget {
 
-    public BannerWidget(int x, int y, Component text) {
+    private final PlannerScreen parent;
+
+    public BannerWidget(int x, int y, Component text, PlannerScreen parent) {
         super(x, y, 90, 19, text);
+        this.parent = parent;
     }
 
     @Override
-    public void renderWidget(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-
-        guiGraphics.blit(PlannerScreen.TEXTURE, this.getX(), this.getY(), 0, 205, this.getWidth(), this.getHeight());
-
-        Font font = Minecraft.getInstance().font;
-        guiGraphics.drawCenteredString(font, this.getMessage(), this.getX() + this.getWidth() / 2, this.getY() + 5, 0xff_90_90_ff);
+    public void renderWidget(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        PlannerScreen.bindTexture();
+        parent.blit(graphics, x, y, 0, 205, width, height);
+        graphics.drawCenteredString(Minecraft.getInstance().font, getMessage(), x + width/2, y + 5, 0xff_90_90_ff);
     }
 
     @Override
-    public void playDownSound(@NotNull SoundManager soundManager) {
-    }
-
+    public void playDownSound(@NotNull SoundManager SoundManager) {}
 
     @Override
-    protected void updateWidgetNarration(@NotNull NarrationElementOutput narrationElementOutput) {
+    public void updateWidgetNarration(NarrationElementOutput p_169152_) {
+
     }
 }
