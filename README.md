@@ -6,7 +6,6 @@ tool, armor piece or bow will end up like before you forge it.
 [![Available on CurseForge][badge-curseforge]][curseforge]
 [![Available on Modrinth][badge-modrinth]][modrinth]
 [![Available on GitHub][badge-github]][repo]
-[![Supports Forge][badge-forge]][forge]
 [![Report issues][badge-issues]][issues]
 
 [![Code license: LGPL-3.0-or-later][shield-license-code]](LICENSE)
@@ -87,6 +86,7 @@ Notes:
 [issues]: https://github.com/dreamforSh/tconplanner/issues
 [curseforge]: https://www.curseforge.com/minecraft/mc-mods/tinkers-planner-reborn
 [modrinth]: https://modrinth.com/mod/tinkers-planner-reborn
+[forge]: https://files.minecraftforge.net/
 [cc-by-nc-sa]: https://creativecommons.org/licenses/by-nc-sa/4.0/
 [lgpl]: https://www.gnu.org/licenses/lgpl-3.0.html
 
