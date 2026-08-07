@@ -5,23 +5,28 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
 import com.xinian.tconplanner.data.ModifierInfo;
 import com.xinian.tconplanner.screen.PlannerScreen;
 import slimeknights.tconstruct.library.modifiers.Modifier;
 import slimeknights.tconstruct.library.modifiers.ModifierId;
 import slimeknights.tconstruct.library.recipe.modifiers.adding.IDisplayModifierRecipe;
 import slimeknights.tconstruct.library.recipe.tinkerstation.ITinkerStationRecipe;
-import slimeknights.tconstruct.library.tools.nbt.ToolStack;
 
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class ModifierStack {
     private final LinkedList<ModifierInfo> stack = new LinkedList<>();
+    /**
+     * Per-level material amounts for incremental modifiers. Always empty: Tinkers keeps
+     * {@code IncrementalModifierRecipe.neededPerLevel} protected with no accessor, and both
+     * {@code ModifierEntry.getNeeded()} and the entry built by {@code AbstractModifierRecipe
+     * .getDisplayResult()} return 0, so the planner can never learn the real value. The map and its
+     * NBT are kept because {@link com.xinian.tconplanner.data.BaseBlueprint#equals} compares serialised
+     * blueprints - dropping the "diff" tag would stop every existing bookmark from matching itself.
+     */
     private final HashMap<ModifierId, Integer> incrementalDiffMap = new HashMap<>();
 
     public void push(ModifierInfo info){
@@ -33,16 +38,40 @@ public class ModifierStack {
     }
 
     public void moveDown(int index){
+        if(index < 0 || index >= stack.size() - 1) return;
         ModifierInfo info = stack.remove(index);
         stack.add(index + 1, info);
     }
 
-    public void setIncrementalDiff(Modifier modifier, int amount){
-        incrementalDiffMap.put(modifier.getId(), Mth.clamp(amount,0, ModifierRecipeLookup.getNeededPerLevel(modifier.getId())));
+    public void moveUp(int index){
+        moveDown(index - 1);
     }
 
-    public int getIncrementalDiff(Modifier modifier){
-        return incrementalDiffMap.getOrDefault(modifier.getId(), 0);
+    /** Removes one specific entry by position, so duplicate levels of the same modifier stay distinguishable */
+    public void removeAt(int index){
+        if(index < 0 || index >= stack.size()) return;
+        stack.remove(index);
+    }
+
+    public void clear(){
+        stack.clear();
+        incrementalDiffMap.clear();
+    }
+
+    public int size(){
+        return stack.size();
+    }
+
+    public boolean isEmpty(){
+        return stack.isEmpty();
+    }
+
+    /** Shallow copy - {@link ModifierInfo} is immutable, so the entries can be shared */
+    public ModifierStack copy(){
+        ModifierStack copy = new ModifierStack();
+        copy.stack.addAll(stack);
+        copy.incrementalDiffMap.putAll(incrementalDiffMap);
+        return copy;
     }
 
     public boolean isRecipeUsed(ITinkerStationRecipe recipe){
@@ -51,21 +80,6 @@ public class ModifierStack {
 
     public int getLevel(Modifier modifier){
         return (int) stack.stream().filter(info1 -> info1.modifier.equals(modifier)).count();
-    }
-
-    public void applyIncrementals(ToolStack tool){
-        stack.stream().distinct().forEach(info -> {
-            Modifier mod = info.modifier;
-            int amount = ModifierRecipeLookup.getNeededPerLevel(mod.getId());
-            if(amount > 0){
-                //
-                int needed = ModifierRecipeLookup.getNeededPerLevel(mod.getId());
-                int currentDiff = getIncrementalDiff(mod);
-                int applyAmount = needed - currentDiff;
-
-                tool.addModifierAmount(mod.getId(), applyAmount, needed);
-            }
-        });
     }
 
     public List<ModifierInfo> getStack(){
@@ -94,7 +108,9 @@ public class ModifierStack {
         stack.clear();
         incrementalDiffMap.clear();
         ListTag modList = tag.getList("mods", 8);
-        Map<ResourceLocation, IDisplayModifierRecipe> recipesMap = PlannerScreen.getModifierRecipes().stream().collect(Collectors.toMap(recipe -> ((ITinkerStationRecipe)recipe).getId(), recipe -> recipe));
+        //Memoised index - this used to rescan every recipe in the game once per deserialised blueprint,
+        //so opening the planner with N bookmarks cost N full recipe scans
+        Map<ResourceLocation, IDisplayModifierRecipe> recipesMap = PlannerScreen.getModifierRecipeIndex();
         for(int i = 0; i < modList.size(); i++){
             ResourceLocation resourceLocation = new ResourceLocation(modList.getString(i));
             if(recipesMap.containsKey(resourceLocation)) {

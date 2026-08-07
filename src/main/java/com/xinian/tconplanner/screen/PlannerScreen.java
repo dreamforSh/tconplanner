@@ -17,11 +17,11 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import com.xinian.tconplanner.TConPlanner;
 import com.xinian.tconplanner.api.TCTool;
 import com.xinian.tconplanner.data.Blueprint;
-import com.xinian.tconplanner.data.ModifierInfo;
 import com.xinian.tconplanner.data.PlannerData;
 import com.xinian.tconplanner.util.MaterialSort;
-import com.xinian.tconplanner.util.ModifierStack;
+import com.xinian.tconplanner.util.ModifierEvaluator;
 import com.xinian.tconplanner.util.TranslationUtil;
+import net.minecraft.util.Mth;
 import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
 import slimeknights.mantle.recipe.helper.RecipeHelper;
@@ -69,12 +69,15 @@ public class PlannerScreen extends Screen {
     public int materialPage = 0;
     public MaterialSort<?> sorter;
 
-    public ModifierInfo selectedModifier;
-
-    public int selectedModifierStackIndex = -1;
-    public ModifierStack modifierStack;
+    /** Survives {@link #refresh()} - only widgets are cleared, so the validation cache stays warm */
+    public final ModifierEvaluator modifierEvaluator = new ModifierEvaluator();
+    public String modifierSearch = "";
+    public int modifierTab = ModifierPanel.TAB_ALL;
+    public boolean modifierSearchFocused = false;
 
     public int left, top, guiWidth, guiHeight;
+    /** Shrinks on narrow screens so the panel never costs more room than the old fixed 115 */
+    public int modPanelWidth;
     private Component titleText;
 
     //
@@ -113,11 +116,16 @@ public class PlannerScreen extends Screen {
         guiHeight = 204;
         left = width / 2 - guiWidth / 2;
         top = height / 2 - guiHeight / 2;
+        //Take what the screen actually has left of the main window, capped at the design width
+        modPanelWidth = Mth.clamp(width - (left + guiWidth), ModifierPanel.NARROW_WIDTH, ModifierPanel.WIDTH);
         refresh();
     }
 
     public void refresh() {
         clearWidgets();
+        //clearWidgets leaves Screen.focused pointing at a detached widget, which would keep routing
+        //key events to the old panel's search box instead of the one actually on screen
+        setFocused(null);
         int toolSpace = 20;
         int panelWidth = 100;
         int panelX = left - panelWidth - 4;
@@ -159,9 +167,34 @@ public class PlannerScreen extends Screen {
                 addRenderableWidget(new MaterialSelectPanel(left, top + topPanelSize, guiWidth, guiHeight - topPanelSize, this));
             }
             if (resultStack != null) {
-                addRenderableWidget(new ModifierPanel(left + guiWidth, top, 115, guiHeight, result, resultStack, modifiers, this));
+                ModifierPanel modifierPanel = new ModifierPanel(left + guiWidth, top, modPanelWidth, guiHeight,
+                        result, resultStack, modifiers, this);
+                addRenderableWidget(modifierPanel);
+                if (modifierSearchFocused) setFocused(modifierPanel);
             }
         }
+    }
+
+    /**
+     * Swaps only the modifier panel, so the search box keeps its text, caret and focus while typing.
+     * The material search box already works this way via {@link #refreshMaterialList()}.
+     */
+    public void refreshModifierPanel() {
+        List<GuiEventListener> toRemove = new ArrayList<>();
+        for (GuiEventListener g : new ArrayList<>(this.children)) {
+            if (g instanceof ModifierPanel) toRemove.add(g);
+        }
+        for (GuiEventListener w : toRemove) {
+            this.removeWidget(w);
+        }
+        if (blueprint == null) return;
+        ItemStack result = blueprint.createOutput();
+        if (result.isEmpty()) return;
+        ModifierPanel panel = new ModifierPanel(left + guiWidth, top, modPanelWidth, guiHeight,
+                result, ToolStack.from(result), modifiers, this);
+        addRenderableWidget(panel);
+        //removeWidget leaves Screen.focused dangling on the detached panel; key events need the new one
+        if (modifierSearchFocused) setFocused(panel);
     }
 
     public void refreshMaterialList() {
@@ -203,9 +236,11 @@ public class PlannerScreen extends Screen {
         blueprint = bp;
         this.materialPage = 0;
         sorter = null;
-        selectedModifier = null;
-        modifierStack = null;
-        selectedModifierStackIndex = -1;
+        //A different tool has a different modifier list, so neither the query nor the cache carries over
+        modifierSearch = "";
+        modifierTab = ModifierPanel.TAB_ALL;
+        modifierSearchFocused = false;
+        modifierEvaluator.invalidate();
         setSelectedPart(-1);
     }
 
@@ -218,9 +253,6 @@ public class PlannerScreen extends Screen {
 
     public void setPart(IMaterial material) {
         blueprint.materials[selectedPart] = material;
-        selectedModifier = null;
-        selectedModifierStackIndex = -1;
-        modifierStack = null;
         refresh();
     }
 
@@ -344,7 +376,6 @@ public class PlannerScreen extends Screen {
             }
         }
 
-        selectedModifier = null;
         refresh();
     }
 
@@ -396,26 +427,50 @@ public class PlannerScreen extends Screen {
 
         private record ModifierSignature(slimeknights.tconstruct.library.modifiers.Modifier modifier, slimeknights.tconstruct.library.tools.SlotType.SlotCount slots, int level) {}
 
-    public static List<IDisplayModifierRecipe> getModifierRecipes() {
+    private static RecipeManager cachedRecipeManager;
+    private static List<IDisplayModifierRecipe> cachedRecipes = Collections.emptyList();
+    private static Map<ResourceLocation, IDisplayModifierRecipe> cachedRecipeIndex = Collections.emptyMap();
 
+    /**
+     * Every modifier recipe that can be displayed, deduplicated by (modifier, slots, level).
+     * <p>
+     * Memoised against the {@link RecipeManager} instance, which a world change or datapack reload
+     * replaces - so invalidation is free. This used to rescan on every call, and it is called from
+     * {@code ModifierStack.fromNBT}, i.e. once per saved bookmark on load and once per blueprint clone.
+     */
+    public static List<IDisplayModifierRecipe> getModifierRecipes() {
         if (Minecraft.getInstance().level == null) {
             return Collections.emptyList();
         }
         RecipeManager recipeManager = Minecraft.getInstance().level.getRecipeManager();
+        if (recipeManager == cachedRecipeManager) {
+            return cachedRecipes;
+        }
         List<IDisplayModifierRecipe> jeiRecipes = RecipeHelper.getJEIRecipes(Minecraft.getInstance().level.registryAccess(), recipeManager, TinkerRecipeTypes.TINKER_STATION.get(), IDisplayModifierRecipe.class);
-        
+
         List<IDisplayModifierRecipe> cleanedList = new ArrayList<>();
-        java.util.Set<ModifierSignature> seen = new java.util.HashSet<>();
+        Map<ResourceLocation, IDisplayModifierRecipe> index = new HashMap<>();
+        Set<ModifierSignature> seen = new HashSet<>();
 
         for (IDisplayModifierRecipe recipe : jeiRecipes) {
-            if (recipe instanceof ITinkerStationRecipe) {
+            if (recipe instanceof ITinkerStationRecipe stationRecipe) {
                 ModifierEntry result = recipe.getDisplayResult();
                 ModifierSignature signature = new ModifierSignature(result.getModifier(), recipe.getSlots(), result.getLevel());
                 if (seen.add(signature)) {
                     cleanedList.add(recipe);
+                    index.put(stationRecipe.getId(), recipe);
                 }
             }
         }
-        return cleanedList;
+        cachedRecipeManager = recipeManager;
+        cachedRecipes = cleanedList;
+        cachedRecipeIndex = index;
+        return cachedRecipes;
+    }
+
+    /** Recipe-id lookup over the same deduplicated list, for deserialising a saved modifier stack */
+    public static Map<ResourceLocation, IDisplayModifierRecipe> getModifierRecipeIndex() {
+        getModifierRecipes();
+        return cachedRecipeIndex;
     }
 }

@@ -40,11 +40,9 @@ public class ArmorBlueprint extends BaseBlueprint<TCArmor> {
         if (!creativeSlots.isEmpty()) {
             CompoundTag creativeSlotsNbt = new CompoundTag();
             creativeSlots.forEach((slotType, amount) -> {
-                if (amount > 0) {
-                    String slotName = slotType.toString();
-                    slotName = slotName.substring(9, slotName.length() - 1);
-                    creativeSlotsNbt.putInt(slotName, amount);
-                }
+                //getName() is what Blueprint writes and what SlotType.getIfPresent reads back; it is
+                //also exactly what the old substring of "SlotType{name}" produced, so the NBT is unchanged
+                if (amount > 0) creativeSlotsNbt.putInt(slotType.getName(), amount);
             });
             if (!creativeSlotsNbt.isEmpty()) {
                 nbt.put("creativeSlots", creativeSlotsNbt);

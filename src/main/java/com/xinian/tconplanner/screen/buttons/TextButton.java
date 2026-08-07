@@ -1,12 +1,10 @@
 package com.xinian.tconplanner.screen.buttons;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Button.CreateNarration;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import com.xinian.tconplanner.screen.PlannerScreen;
 
@@ -40,13 +38,23 @@ public class TextButton extends Button {
         return this;
     }
 
+    //planner.png's button plate: border at u=176, uniform body u=177..222, border at u=223 - only 48
+    //wide in total, so a plain blit at the default 58 used to leave 10px unpainted
+    private static final int PLATE_U = 176;
+    private static final int PLATE_BODY_WIDTH = 46;
+    private static final int PLATE_V = 183;
+
     @Override
     public void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        PoseStack stack = graphics.pose();
-        RenderSystem.enableBlend();
         PlannerScreen.bindTexture();
+        RenderSystem.enableBlend();
         RenderSystem.setShaderColor(((color & 0xff0000) >> 16)/255f, ((color & 0x00ff00) >> 8)/255f, (color & 0x0000ff)/255f,1f);
-        parent.blit(graphics, x, y, 176, 183, width, height);
+        parent.blit(graphics, x, y, PLATE_U, PLATE_V, 1, height);
+        for(int drawn = 0; drawn < width - 2; drawn += PLATE_BODY_WIDTH){
+            parent.blit(graphics, x + 1 + drawn, y, PLATE_U + 1, PLATE_V, Math.min(PLATE_BODY_WIDTH, width - 2 - drawn), height);
+        }
+        parent.blit(graphics, x + width - 1, y, PLATE_U + 47, PLATE_V, 1, height);
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         graphics.drawCenteredString(Minecraft.getInstance().font, getMessage(), x + width/2, y + 5, isHovered ? 0xffffffff : 0xa0ffffff);
         if(isHovered){
             renderToolTip(graphics, mouseX, mouseY);

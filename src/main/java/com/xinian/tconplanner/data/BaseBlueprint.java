@@ -66,10 +66,26 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
                     stack.getPersistentData().addSlots(info.count.type(), -info.count.count());
                 }
             }
-            modStack.applyIncrementals(stack);
         }
         stack.rebuildStats();
         return stack.createStack();
+    }
+
+    /**
+     * The tool this blueprint would produce with a different modifier stack.
+     * <p>
+     * Deliberately not {@code clone().createOutput()}: {@link #clone} round-trips through NBT, and
+     * {@code ModifierStack.fromNBT} needs the recipe index - far too heavy for something the UI calls
+     * while the cursor merely hovers a row.
+     */
+    public ItemStack previewWith(ModifierStack override) {
+        ModifierStack saved = this.modStack;
+        try {
+            this.modStack = override;
+            return createOutput();
+        } finally {
+            this.modStack = saved;
+        }
     }
 
     public void addCreativeSlot(SlotType type) {
@@ -89,10 +105,16 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
     }
 
     public RecipeResult<ItemStack> validate() {
+        return validateWith(modStack);
+    }
+
+    /** Replays an arbitrary modifier order against this blueprint's parts, in application order */
+    @SuppressWarnings("unchecked")
+    public RecipeResult<ItemStack> validateWith(ModifierStack order) {
         ToolStack ts = ToolStack.from(createOutput(false));
         RecipeResult<ItemStack> result = null;
 
-        for (ModifierInfo info : modStack.getStack()) {
+        for (ModifierInfo info : order.getStack()) {
             IDisplayModifierRecipe recipe = info.recipe;
             RecipeResult<?> rs = ((ITinkerStationRecipe) recipe).getValidatedResult(new DummyTinkersStationInventory(ts.createStack()), net.minecraft.client.Minecraft.getInstance().level.registryAccess());
             if (rs.hasError()) {

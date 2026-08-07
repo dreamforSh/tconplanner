@@ -1,210 +1,255 @@
 package com.xinian.tconplanner.screen;
 
 import com.xinian.tconplanner.data.BaseBlueprint;
-import com.xinian.tconplanner.data.Blueprint;
 import com.xinian.tconplanner.data.ModifierInfo;
-import com.xinian.tconplanner.screen.buttons.*;
-import com.xinian.tconplanner.screen.buttons.modifiers.*;
-import com.xinian.tconplanner.util.*;
-import net.minecraft.ChatFormatting;
+import com.xinian.tconplanner.screen.buttons.BannerWidget;
+import com.xinian.tconplanner.screen.buttons.PaginatedPanel;
+import com.xinian.tconplanner.screen.buttons.modifiers.AppliedModifierRow;
+import com.xinian.tconplanner.screen.buttons.modifiers.ModifierButton;
+import com.xinian.tconplanner.screen.buttons.modifiers.ModifierRow;
+import com.xinian.tconplanner.screen.buttons.modifiers.ModifierTheme;
+import com.xinian.tconplanner.screen.buttons.modifiers.SlotBarWidget;
+import com.xinian.tconplanner.util.DummyTinkersStationInventory;
+import com.xinian.tconplanner.util.JECharactersIntegration;
+import com.xinian.tconplanner.util.ModifierEvaluator;
+import com.xinian.tconplanner.util.ModifierStateEnum;
+import com.xinian.tconplanner.util.TranslationUtil;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
-import slimeknights.tconstruct.TConstruct;
-import slimeknights.tconstruct.library.modifiers.IncrementalModifierEntry;
-import slimeknights.tconstruct.library.modifiers.Modifier;
-import slimeknights.tconstruct.library.modifiers.ModifierEntry;
+import org.jetbrains.annotations.NotNull;
 import slimeknights.tconstruct.library.modifiers.ModifierId;
-import slimeknights.tconstruct.library.modifiers.impl.DurabilityShieldModifier;
-import slimeknights.tconstruct.library.modifiers.impl.NoLevelsModifier;
 import slimeknights.tconstruct.library.recipe.RecipeResult;
 import slimeknights.tconstruct.library.recipe.modifiers.adding.IDisplayModifierRecipe;
 import slimeknights.tconstruct.library.recipe.tinkerstation.ITinkerStationRecipe;
-import slimeknights.tconstruct.library.tools.SlotType;
-import slimeknights.tconstruct.library.tools.nbt.LazyToolStack;
 import slimeknights.tconstruct.library.tools.nbt.ToolStack;
-import slimeknights.tconstruct.library.tools.item.IModifiable;
 
-import java.util.ArrayList;
-import java.util.Comparator;
+import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
-public class ModifierPanel extends PlannerPanel{
-    public static final String KEY_MAX_LEVEL = TConstruct.makeTranslationKey("recipe", "modifier.max_level");
-    private final static SlotType[] ValidSlots = new SlotType[]{SlotType.UPGRADE, SlotType.ABILITY};
+/**
+ * The modifier side panel: slot chips, a search box, three views and one list.
+ * <p>
+ * The previous version was a three-state machine - browse, an add/remove sub-page that replaced the
+ * whole list, and a hidden reorder mode behind an unlabelled icon with its own Save/Cancel. All three
+ * are gone. There is one list, always visible; levels change inline (see {@link ModifierRow}) and the
+ * stack is reordered inline (see {@link AppliedModifierRow}).
+ */
+public class ModifierPanel extends PlannerPanel {
 
-    public ModifierPanel(int x, int y, int width, int height, ItemStack result, ToolStack tool, List<IDisplayModifierRecipe> modifiers, PlannerScreen parent) {
+    /** Wider than the old 115 so names stop being squashed; needs ~448px of effective screen width */
+    public static final int WIDTH = 136;
+    /** Fallback for screens too narrow for {@link #WIDTH} */
+    public static final int NARROW_WIDTH = 115;
+
+    public static final int TAB_ALL = 0;
+    public static final int TAB_AVAILABLE = 1;
+    public static final int TAB_APPLIED = 2;
+    private static final int TAB_COUNT = 3;
+
+    private static final int MARGIN = 2;
+    private static final int SLOT_BAR_Y = 21;
+    private static final int SEARCH_Y = 36;
+    private static final int SEARCH_HEIGHT = 14;
+    private static final int TAB_Y = 52;
+    //13 rather than 12 so the selected tab's 2px accent bar clears the label
+    private static final int TAB_HEIGHT = 13;
+    private static final int LIST_Y = 66;
+    private static final int BROWSE_ROWS = 8;
+    private static final int APPLIED_ROWS = 7;
+    private static final int RESET_Y = 186;
+    private static final int RESET_HEIGHT = 16;
+
+    private final EditBox searchBox;
+    @Nullable
+    private Component emptyMessage;
+
+    public ModifierPanel(int x, int y, int width, int height, ItemStack result, ToolStack tool,
+                         List<IDisplayModifierRecipe> modifiers, PlannerScreen parent) {
         super(x, y, width, height, parent);
-        //Show available modifier slots
-        int slotIndex = 0;
-        for (SlotType slotType : ValidSlots) {
-            int slots = tool.getFreeSlots(slotType);
-            List<Component> tooltips = new ArrayList<>();
-            Component coloredName = Component.literal("")
-                    .withStyle(Style.EMPTY.withColor(slotType.getColor()))
-                    .append(slotType.getDisplayName())
-                    .append(Component.literal("").withStyle(ChatFormatting.RESET));
-            tooltips.add(TranslationUtil.createComponent("slots.available", coloredName));
-            tooltips.add(Component.literal(""));
-            tooltips.add(TranslationUtil.createComponent("modifiers.addcreativeslot").copy().withStyle(ChatFormatting.GREEN));
-            MutableComponent removeCreativeSlotTextComponent = TranslationUtil.createComponent("modifiers.removecreativeslot").copy().withStyle(ChatFormatting.RED);
-            if(slots == 0){
-                removeCreativeSlotTextComponent.withStyle(removeCreativeSlotTextComponent.getStyle().applyFormats(ChatFormatting.STRIKETHROUGH));
-            }
-            tooltips.add(removeCreativeSlotTextComponent);
-            MutableComponent slotsRemaining = Component.literal("" + slots);
-            int creativeSlots = parent.blueprint.creativeSlots.getOrDefault(slotType, 0);
-            if(creativeSlots > 0){
-                slotsRemaining.append(" (+" + parent.blueprint.creativeSlots.get(slotType) + ")");
-            }
-            addChild(new TooltipTextWidget(108, 23 + slotIndex * 12, TextPosEnum.LEFT, slotsRemaining, tooltips, parent)
-                    .withColor(slotType.getColor().getValue() + 0xff_00_00_00)
-                    .withClickHandler((mouseX, mouseY, mouseButton) -> handleCreativeSlotButton(slotType, slots, creativeSlots, mouseButton)));
-            slotIndex++;
-        }
-        addChild(new BannerWidget(7, 0, TranslationUtil.createComponent("banner.modifiers"), parent));
-        int modGroupStartY = 23;
-        int modGroupStartX = 2;
         BaseBlueprint<?> blueprint = parent.blueprint;
-        ModifierInfo selectedModifier = parent.selectedModifier;
-        ModifierStack modifierStack = parent.modifierStack;
+        int contentWidth = width - MARGIN * 2;
+        int rowWidth = contentWidth - 3;
 
-        //Show modifier stack
-        if(modifierStack != null){
-            HashMap<ModifierId, Integer> levelCount = new HashMap<>();
-            PaginatedPanel<ModifierStackButton> stackGroup = new PaginatedPanel<>(modGroupStartX, modGroupStartY, 100, 18, 1, 5, 2, "modifierstackgroup", parent);
-            addChild(stackGroup);
-            ToolStack displayStack = ToolStack.from(blueprint.createOutput(false));
-            List<ModifierInfo> modStack = modifierStack.getStack();
-            BaseBlueprint<?> resultingBlueprint = parent.blueprint.clone();
-            resultingBlueprint.modStack = modifierStack;
-            RecipeResult<?> validatedResult = resultingBlueprint.validate();
-            boolean isValid = !validatedResult.hasError();
-            for (int i = 0; i < modStack.size(); i++) {
-                ModifierInfo info = modStack.get(i);
-                int newLevel = levelCount.getOrDefault(info.modifier.getId(), 0) + 1;
-                levelCount.put(info.modifier.getId(), newLevel);
-                displayStack.addModifier(info.modifier.getId(), 1);
-                if (info.count != null) {
-                    displayStack.getPersistentData().addSlots(info.count.type(), -info.count.count());
-                }
-                displayStack.rebuildStats();
-                stackGroup.addChild(new ModifierStackButton(info, i, newLevel, displayStack.copy().createStack(), parent));
-            }
-            stackGroup.refresh();
-            addChild(new TextButton(2 + 50 - 58 / 2, 158, TranslationUtil.createComponent("modifierstack.save"), () -> {
-                if(isValid) {
-                    parent.blueprint.modStack = parent.modifierStack;
-                    parent.modifierStack = null;
-                    parent.refresh();
-                }
-            }, parent).withColor(isValid ? 0x50ff50 : 0x1a0000).withTooltip(isValid ? null : validatedResult.getMessage()));
-            addChild(new TextButton(2 + 50 - 58 / 2, 180, TranslationUtil.createComponent("modifierstack.cancel"), () -> {
-                parent.modifierStack = null;
-                parent.refresh();
-            }, parent).withColor(0xe02121));
+        //Everything cached against a different blueprint dies here, before any lookup below
+        parent.modifierEvaluator.sync(blueprint);
 
-            if(parent.selectedModifierStackIndex != -1){
-                addChild(new StackMoveButton(2 + 50 - 9, 130, true, stackGroup, parent));
-                addChild(new StackMoveButton(2 + 50 - 9, 141, false, stackGroup, parent));
-            }
-        }else if(selectedModifier == null) { //Show list of modifiers
-            PaginatedPanel<ModifierSelectButton> modifiersGroup = new PaginatedPanel<>(modGroupStartX, modGroupStartY, 100, 18, 1, 9, 2, "modifiersgroup", parent);
-            addChild(modifiersGroup);
-            for (IDisplayModifierRecipe recipe : modifiers) {
-                if (recipe.getToolWithoutModifier().stream().anyMatch(stack -> !stack.isEmpty() && stack.getItem() instanceof IModifiable && ToolStack.from(stack).getDefinition() == blueprint.toolDefinition)) {
-                    modifiersGroup.addChild(ModifierSelectButton.create(recipe, tool, result, parent));
-                }
-            }
-            modifiersGroup.sort(Comparator.comparingInt(value -> value.state.ordinal()));
-            modifiersGroup.refresh();
-            addChild(new IconButton(100, 0, new Icon(5, 0),
-                    TranslationUtil.createComponent("editmodifierstack"), parent, e -> {
-                parent.modifierStack = blueprint.clone().modStack;
-                parent.selectedModifierStackIndex = -1;
-                parent.refresh();
-            }));
-        } else { //Add/remove a modifier
-            ModifierSelectButton modSelectButton = ModifierSelectButton.create(selectedModifier.recipe, tool, result, parent);
-            modSelectButton.x = modGroupStartX;
-            modSelectButton.y = modGroupStartY;
-            addChild(modSelectButton);
+        addChild(new BannerWidget((width - 90) / 2, 0, TranslationUtil.createComponent("banner.modifiers"), parent));
+        addChild(new SlotBarWidget(MARGIN, SLOT_BAR_Y, contentWidth, tool, parent));
 
-            Modifier modifier = selectedModifier.modifier;
-            ITinkerStationRecipe tsrecipe = (ITinkerStationRecipe) selectedModifier.recipe;
+        searchBox = new EditBox(Minecraft.getInstance().font, MARGIN, SEARCH_Y, contentWidth, SEARCH_HEIGHT,
+                TranslationUtil.createComponent("modifiers.search"));
+        searchBox.setMaxLength(50);
+        searchBox.setValue(parent.modifierSearch);
+        searchBox.setResponder(text -> {
+            parent.modifierSearch = text;
+            parent.setCacheValue(pageKey(parent.modifierTab), 0);
+            //Swap only this panel so the box keeps focus while typing
+            parent.refreshModifierPanel();
+        });
+        addChild(searchBox);
+        if (parent.modifierSearchFocused) {
+            searchBox.setFocused(true);
+            searchBox.moveCursorToEnd();
+        }
 
-            addChild(new ModPreviewWidget(2 + 50 - 9, 50, result, parent));
-            int arrowOffset = 11;
-            ModLevelButton addButton = new ModLevelButton(2 + 50 + arrowOffset - 2, 50, 1, parent);
-            RecipeResult<?> validatedResultAdd = (modifier instanceof NoLevelsModifier || modifier instanceof DurabilityShieldModifier) && tool.getModifierLevel(modifier) >= 1 ?
-                    RecipeResult.failure(KEY_MAX_LEVEL, modifier.getDisplayName(), 1) : tsrecipe.getValidatedResult(new DummyTinkersStationInventory(result), Minecraft.getInstance().level.registryAccess());
-            if (!validatedResultAdd.isSuccess()) {
-                addButton.disable(validatedResultAdd.getMessage().copy().setStyle(Style.EMPTY.withColor(ChatFormatting.RED)));
-                addChild(new ModPreviewWidget(addButton.x + addButton.getWidth() + 2, 50, ItemStack.EMPTY, parent));
-            } else if (blueprint.modStack.getIncrementalDiff(modifier) > 0) {
-                addButton.disable(TranslationUtil.createComponent("modifiers.error.incrementnotmax").copy().setStyle(Style.EMPTY.withColor(ChatFormatting.RED)));
-                addChild(new ModPreviewWidget(addButton.x + addButton.getWidth() + 2, 50, ItemStack.EMPTY, parent));
-            } else {
-                BaseBlueprint<?> copy = blueprint.clone();
-                copy.modStack.push(selectedModifier);
-                addChild(new ModPreviewWidget(addButton.x + addButton.getWidth() + 2, 50, copy.createOutput(), parent));
-            }
-            addChild(addButton);
+        addTabs(blueprint, contentWidth);
 
-            ModLevelButton subtractButton = new ModLevelButton(2 + 50 - arrowOffset - 18, 50, -1, parent);
-            RecipeResult<ItemStack> validatedResultSubtract = ToolValidator.validateModRemoval(blueprint, tool, selectedModifier);
-
-            if (validatedResultSubtract.hasError()) {
-                subtractButton.disable(((MutableComponent) validatedResultSubtract.getMessage()).setStyle(Style.EMPTY.withColor(ChatFormatting.RED)));
-            }
-            addChild(new ModPreviewWidget(subtractButton.x - 2 - 18, 50, subtractButton.isDisabled() ? ItemStack.EMPTY : validatedResultSubtract.getResult(), parent));
-            addChild(subtractButton);
-            int perLevel = ModifierRecipeLookup.getNeededPerLevel(modifier.getId());
-//            int perLevel = ModifierPanel.getNeededPerLevel(tool.getModifier(modifier.getId()));
-            if (perLevel > 0 && blueprint.modStack.getLevel(modifier) > 0) {
-                addChild(new SliderWidget(2 + 10, 70, 80, 20, val -> {
-                    blueprint.modStack.setIncrementalDiff(modifier, perLevel - val);
-                    parent.refresh();
-                },1, perLevel, perLevel - blueprint.modStack.getIncrementalDiff(modifier), parent));
-            }
-
-            addChild(new TextButton(2 + 50 - 58 / 2, 115, TranslationUtil.createComponent("modifiers.exit"), () -> {
-                parent.selectedModifier = null;
-                parent.refresh();
-            }, parent).withColor(0xe02121));
+        if (parent.modifierTab == TAB_APPLIED) {
+            buildAppliedList(blueprint, rowWidth);
+        } else {
+            buildBrowseList(blueprint, tool, result, modifiers, rowWidth);
         }
     }
 
-    public static int getNeededPerLevel(ModifierEntry entry) {
-        if (entry instanceof IncrementalModifierEntry incremental) {
-            return incremental.getNeeded();
+    private void addTabs(BaseBlueprint<?> blueprint, int contentWidth) {
+        int gap = 2;
+        int tabWidth = (contentWidth - gap * (TAB_COUNT - 1)) / TAB_COUNT;
+        Component[] labels = {
+                TranslationUtil.createComponent("modifiers.tab.all"),
+                TranslationUtil.createComponent("modifiers.tab.available"),
+                TranslationUtil.createComponent("modifiers.tab.applied", blueprint.modStack.size())
+        };
+        for (int tab = 0; tab < TAB_COUNT; tab++) {
+            int target = tab;
+            addChild(new ModifierButton(MARGIN + tab * (tabWidth + gap), TAB_Y, tabWidth, TAB_HEIGHT, labels[tab], () -> {
+                parent.modifierTab = target;
+                parent.refresh();
+            }, parent).selected(parent.modifierTab == tab));
         }
-        return 0;
     }
 
-    private boolean handleCreativeSlotButton(SlotType type, int remainingSlots, int creativeSlots, int mb){
-        SoundManager soundManager = Minecraft.getInstance().getSoundManager();
-        if(mb == 0){
-            parent.blueprint.addCreativeSlot(type);
+    private void buildBrowseList(BaseBlueprint<?> blueprint, ToolStack tool, ItemStack result,
+                                 List<IDisplayModifierRecipe> modifiers, int rowWidth) {
+        PaginatedPanel<ModifierRow> list = new PaginatedPanel<>(MARGIN, LIST_Y, rowWidth, ModifierRow.HEIGHT,
+                1, BROWSE_ROWS, 1, pageKey(parent.modifierTab), parent);
+        addChild(list);
+
+        String search = parent.modifierSearch.toLowerCase(Locale.ROOT).trim();
+        boolean availableOnly = parent.modifierTab == TAB_AVAILABLE;
+        int shown = 0;
+        for (ModifierEvaluator.Candidate candidate : parent.modifierEvaluator.candidatesFor(blueprint.toolDefinition, modifiers)) {
+            if (!matches(candidate, search)) continue;
+            ModifierRow row = new ModifierRow(candidate, rowWidth, tool, result, parent);
+            //Only this branch pays for a full validation sweep; results are cached for later refreshes
+            if (availableOnly && row.getState() == ModifierStateEnum.UNAVAILABLE) continue;
+            list.addChild(row);
+            shown++;
+        }
+        list.refresh();
+
+        if (shown == 0) {
+            emptyMessage = TranslationUtil.createComponent(search.isEmpty() ? "modifiers.empty" : "modifiers.empty.search");
+        }
+    }
+
+    /**
+     * Walks the stack applying one modifier at a time, so each row can show the tool as of that step
+     * and the first step that cannot be crafted can be marked.
+     */
+    private void buildAppliedList(BaseBlueprint<?> blueprint, int rowWidth) {
+        PaginatedPanel<AppliedModifierRow> list = new PaginatedPanel<>(MARGIN, LIST_Y, rowWidth, AppliedModifierRow.HEIGHT,
+                1, APPLIED_ROWS, 1, pageKey(TAB_APPLIED), parent);
+        addChild(list);
+
+        List<ModifierInfo> stack = blueprint.modStack.getStack();
+        if (stack.isEmpty()) {
+            emptyMessage = TranslationUtil.createComponent("modifiers.empty.applied");
+            list.refresh();
+            return;
+        }
+
+        ToolStack walk = ToolStack.from(blueprint.createOutput(false));
+        Map<ModifierId, Integer> levels = new HashMap<>();
+        RegistryAccess access = Minecraft.getInstance().level == null ? null : Minecraft.getInstance().level.registryAccess();
+        boolean alreadyFailed = false;
+
+        for (int i = 0; i < stack.size(); i++) {
+            ModifierInfo info = stack.get(i);
+            int level = levels.merge(info.modifier.getId(), 1, Integer::sum);
+
+            Component error = null;
+            if (!alreadyFailed && access != null) {
+                RecipeResult<?> step = ((ITinkerStationRecipe) info.recipe)
+                        .getValidatedResult(new DummyTinkersStationInventory(walk.createStack()), access);
+                if (step.hasError()) {
+                    error = step.getMessage();
+                    alreadyFailed = true;
+                }
+            }
+
+            walk.addModifier(info.modifier.getId(), 1);
+            if (info.count != null) {
+                walk.getPersistentData().addSlots(info.count.type(), -info.count.count());
+            }
+            walk.rebuildStats();
+            list.addChild(new AppliedModifierRow(info, i, stack.size() - 1, level, rowWidth,
+                    walk.copy().createStack(), error, parent));
+        }
+        list.refresh();
+
+        addChild(new ModifierButton(MARGIN + rowWidth / 2 - 29, RESET_Y, 58, RESET_HEIGHT,
+                TranslationUtil.createComponent("modifiers.reset"), () -> {
+            blueprint.modStack.clear();
             parent.refresh();
-            soundManager.play(SimpleSoundInstance.forUI(SoundEvents.ANVIL_PLACE, 2f, 0.08f));
+        }, parent).dangerous().withTooltip(TranslationUtil.createComponent("modifiers.reset.tooltip", stack.size())));
+    }
+
+    private static boolean matches(ModifierEvaluator.Candidate candidate, String search) {
+        if (search.isEmpty()) return true;
+        if (candidate.searchKey().contains(search)) return true;
+        return JECharactersIntegration.isLoaded() && JECharactersIntegration.matches(candidate.displayName().getString(), search);
+    }
+
+    private static String pageKey(int tab) {
+        return "modifiers.page." + tab;
+    }
+
+    @Override
+    public void renderWidget(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        super.renderWidget(graphics, mouseX, mouseY, partialTick);
+        if (emptyMessage != null) {
+            Font font = Minecraft.getInstance().font;
+            ModifierTheme.fittedCenteredString(graphics, font, emptyMessage, x + width / 2, y + LIST_Y + 26,
+                    width - 8, ModifierTheme.TEXT_FAINT);
+        }
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (searchBox.mouseClicked(mouseX, mouseY, button)) {
+            searchBox.setFocused(true);
+            parent.modifierSearchFocused = true;
             return true;
         }
-        if(mb == 1){
-            if(creativeSlots > 0 && remainingSlots > 0){
-                parent.blueprint.removeCreativeSlot(type);
-                parent.refresh();
-                soundManager.play(SimpleSoundInstance.forUI(SoundEvents.UI_STONECUTTER_TAKE_RESULT, 2f, 0.08f));
-                return true;
-            }
-            soundManager.play(SimpleSoundInstance.forUI(SoundEvents.BAMBOO_FALL, 2f, 0.08f));
+        if (searchBox.isFocused()) {
+            searchBox.setFocused(false);
+            parent.modifierSearchFocused = false;
         }
-        return false;
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (searchBox.isFocused()) {
+            if (searchBox.keyPressed(keyCode, scanCode, modifiers)) return true;
+            return searchBox.canConsumeInput();
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char codePoint, int modifiers) {
+        if (searchBox.isFocused()) {
+            return searchBox.charTyped(codePoint, modifiers);
+        }
+        return super.charTyped(codePoint, modifiers);
     }
 }

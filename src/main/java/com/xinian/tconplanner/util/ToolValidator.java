@@ -5,35 +5,36 @@ import com.xinian.tconplanner.data.ModifierInfo;
 import net.minecraft.world.item.ItemStack;
 import slimeknights.tconstruct.library.recipe.RecipeResult;
 import slimeknights.tconstruct.library.recipe.tinkerstation.ITinkerStationRecipe;
-import slimeknights.tconstruct.library.tools.nbt.ToolStack;
 
 public final class ToolValidator {
 
-    /**
-     * Validate if a modifier is able to be removed from a tool
-     * @param bp      The blueprint to validate against
-     * @param tool    The tool to try to remove a modifier from
-     * @param modInfo The modifier to remove
-     * @return        A RecipeResult containing the new stack on success, or an error message on failure.
-     */
-    public static RecipeResult<ItemStack> validateModRemoval(BaseBlueprint<?> bp, ToolStack tool, ModifierInfo modInfo){
-        ToolStack toolClone = tool.copy();
-        int toolBaseLevel = ToolStack.from(bp.createOutput(false)).getModifierLevel(modInfo.modifier);
-        int minLevel = Math.max(0, toolBaseLevel);
+    private ToolValidator(){}
 
-        if(bp.modStack.getLevel(modInfo.modifier) + toolBaseLevel <= minLevel || !bp.modStack.isRecipeUsed((ITinkerStationRecipe) modInfo.recipe)) {
+    /**
+     * Validate whether one level of a modifier can be taken back off the blueprint.
+     * <p>
+     * The previous version cloned the blueprint and validated it <em>without removing anything from the
+     * clone</em>, so the replay always described the stack you already had and the check could never
+     * fail. It also returned a preview built by calling {@code removeModifier} on the tool directly,
+     * which never refunded the modifier's slots. Both are fixed by replaying the real remaining order.
+     *
+     * @param bp      the blueprint to validate against
+     * @param modInfo the modifier level to remove
+     * @return the resulting tool on success, or the reason it cannot be removed
+     */
+    public static RecipeResult<ItemStack> validateModRemoval(BaseBlueprint<?> bp, ModifierInfo modInfo){
+        if(bp.modStack.getLevel(modInfo.modifier) <= 0 || !bp.modStack.isRecipeUsed((ITinkerStationRecipe) modInfo.recipe)){
             return RecipeResult.failure("gui.tconplanner.modifiers.error.minlevel");
         }
 
-        toolClone.removeModifier(modInfo.modifier.getId(), 1);
+        ModifierStack remaining = bp.modStack.copy();
+        remaining.pop(modInfo);
 
-        BaseBlueprint<?> bpClone = bp.clone();
-
-        RecipeResult<?> bpResult = bpClone.validate();
-        if(bpResult.hasError()) {
-            return RecipeResult.failure(bpResult.getMessage());
+        //Every later modifier is re-run in order, so one that depended on this level still reports it
+        RecipeResult<ItemStack> replayed = bp.validateWith(remaining);
+        if(replayed.hasError()){
+            return replayed;
         }
-
-        return RecipeResult.success(toolClone.createStack());
+        return RecipeResult.success(bp.previewWith(remaining));
     }
 }
