@@ -33,6 +33,7 @@ import com.xinian.tconplanner.screen.buttons.BookmarkedButton;
 import com.xinian.tconplanner.screen.ext.ExtIconButton;
 import com.xinian.tconplanner.screen.ext.ExtItemStackButton;
 import com.xinian.tconplanner.util.Icon;
+import com.xinian.tconplanner.util.ToolPartLookup;
 import com.xinian.tconplanner.util.TranslationUtil;
 import slimeknights.tconstruct.library.materials.definition.MaterialId;
 import slimeknights.tconstruct.library.tools.layout.LayoutSlot;
@@ -108,6 +109,7 @@ public class EventListener {
         //Both lists are built from datapack-driven registries, so they belong to the world being left
         TCTool.invalidate();
         TCArmor.invalidate();
+        ToolPartLookup.invalidate();
         layout = null;
         starredLayout = false;
         starredButton = null;
@@ -158,7 +160,9 @@ public class EventListener {
             //Only tool blueprints have a parts-to-slots path (see movePartsToSlots and updateLayout, both
             //of which already gate on Blueprint). A starred ARMOUR blueprint used to add a button that
             //rendered, swallowed clicks and did nothing at all.
-            if (data.starred instanceof Blueprint) {
+            //...and only a tool that is actually assembled at a station. An ancient tool has no station
+            //layout and no parts, so there is no layout to switch to and nothing to move into the slots
+            if (data.starred instanceof Blueprint starred && canFillSlots(starred)) {
                 List<Component> tooltip = new ArrayList<>();
                 tooltip.add(Component.literal("---------").withStyle(ChatFormatting.GRAY)); // <<-- 变更点 3
                 tooltip.add(TranslationUtil.createComponent("star.move").withStyle(ChatFormatting.GOLD));
@@ -176,7 +180,7 @@ public class EventListener {
                             TConPlanner.LOGGER.error("Failed to save planner data after un-starring", ex);
                         }
                     }else{
-                        if (data.starred instanceof Blueprint toolBlueprint) {
+                        if (data.starred instanceof Blueprint toolBlueprint && canFillSlots(toolBlueprint)) {
                             movePartsToSlots(screen, mc, toolBlueprint);
                         }
                     }
@@ -193,7 +197,10 @@ public class EventListener {
             if (starredLayout) {
                 Blueprint starred = (Blueprint)TConPlanner.DATA.starred;
                 ItemStack carried = screen.getMenu().getCarried();
-                for (int i = 0; i < layout.getInputSlots().size(); i++) {
+                //A layout is only required to have at least as many input slots as the tool has
+                //materials, not exactly as many, so the tool's own count is what bounds the walk
+                int slots = Math.min(layout.getInputSlots().size(), starred.materials.length);
+                for (int i = 0; i < slots; i++) {
                     LayoutSlot slot = layout.getInputSlots().get(i);
                     int slotX = slot.getX() + screen.cornerX, slotY = slot.getY() + screen.cornerY;
                     IToolPart part = starred.toolParts[i];
@@ -238,6 +245,17 @@ public class EventListener {
         }
     }
 
+    /**
+     * Whether a starred blueprint can drive the station slots at all.
+     * <p>
+     * Both the slot overlay and the move-parts button read the tool's station layout and its parts.
+     * A tool with no layout is not built at a station - Tinkers' ancient tools come from loot and
+     * trades - so there is no layout to select and no part to put in a slot.
+     */
+    private static boolean canFillSlots(Blueprint blueprint) {
+        return blueprint.plannable.getLayout() != null && blueprint.hasParts();
+    }
+
     private static void updateLayout(TinkerStationScreen screen, boolean force) {
         try {
             StationSlotLayout newLayout = screen.getCurrentLayout();
@@ -246,9 +264,12 @@ public class EventListener {
             layout = newLayout;
             PlannerData data = TConPlanner.DATA;
             boolean foundButton = false;
-            if(data.starred instanceof Blueprint toolBlueprint){
+            if(data.starred instanceof Blueprint toolBlueprint && canFillSlots(toolBlueprint)){
                 StationSlotLayout starredSlotLayout = toolBlueprint.plannable.getLayout();
-                starredLayout = layout == starredSlotLayout;
+                //Both sides can be null - getCurrentLayout has no layout selected, canFillSlots has just
+                //established the starred one is non-null - and null == null would light up the overlay
+                //over a station whose slots the loop below would then read off a null layout
+                starredLayout = layout != null && layout == starredSlotLayout;
                 //null when the reflective lookup failed; the badge is cosmetic, so carry on without it
                 if (buttonScreen != null) {
                     for (SlotButtonItem button : buttonScreen.getButtons()) {
@@ -276,7 +297,8 @@ public class EventListener {
         Player player = mc.player;
         MultiPlayerGameMode pc = mc.gameMode;
         assert player != null && pc != null;
-        for (int i = 0; i < layout.getInputSlots().size(); i++) {
+        int slots = Math.min(layout.getInputSlots().size(), starred.materials.length);
+        for (int i = 0; i < slots; i++) {
             MaterialId material = starred.materials[i].getIdentifier();
             AbstractContainerMenu container = screen.getMenu();
             Slot tconSlot = container.getSlot(i + 1);

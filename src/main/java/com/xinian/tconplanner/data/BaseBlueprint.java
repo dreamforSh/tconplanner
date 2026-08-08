@@ -38,6 +38,17 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
     public final ToolDefinition toolDefinition;
     public final IMaterial[] materials;
     public final Map<SlotType, Integer> creativeSlots = new HashMap<>();
+    /**
+     * One entry per material slot. Always populated, unlike {@link #toolParts}, and the array every
+     * screen sizes itself against.
+     */
+    public final MaterialStatsId[] statTypes;
+    /**
+     * The parts backing the material slots, or empty for a tool that has none.
+     * <p>
+     * Index with {@link #partAt(int)} rather than directly: a definition with a {@code material_stats}
+     * module but no {@code part_stats} module has material slots and no parts at all.
+     */
     public final IToolPart[] toolParts;
 
     public ModifierStack modStack = new ModifierStack();
@@ -53,26 +64,37 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
         this.toolDefinition = toolItem.getToolDefinition();
         this.toolStack = ToolBuildHandler.buildToolForRendering(toolItem.asItem(), toolDefinition);
         this.toolParts = ToolPartsHook.parts(toolDefinition).toArray(new IToolPart[0]);
-        List<MaterialStatsId> statList = ToolMaterialHook.stats(toolDefinition);
-
-        MaterialStatsId[] requiredStats = statList.toArray(new MaterialStatsId[0]);
-        this.materials = new IMaterial[requiredStats.length];
+        this.statTypes = ToolMaterialHook.stats(toolDefinition).toArray(new MaterialStatsId[0]);
+        this.materials = new IMaterial[statTypes.length];
     }
 
     /**
      * Whether the planner can represent a tool definition at all.
      * <p>
-     * {@code toolParts} comes from {@link ToolPartsHook} and {@code materials} from
-     * {@link ToolMaterialHook}; every screen that walks them assumes the two are the same length.
-     * Nothing in Tinkers guarantees that - a definition with a {@code material_stats} module but no
-     * {@code part_stats} module has zero parts and a non-zero material count, and {@code ToolPartsHook}
-     * defaults to an empty list. Tinkers' own travelers_* and slime_* armour is exactly that shape, and
-     * the only thing keeping it out of the planner was a hardcoded blacklist of eight item ids - which
-     * covered nothing any addon adds. Checking the shape instead covers all of them.
+     * {@code toolParts} comes from {@link ToolPartsHook} and {@code statTypes} from
+     * {@link ToolMaterialHook}. The screens are driven by the material slots, so what matters is that
+     * there is at least one, and that the parts - when a definition has any - line up with them one for
+     * one. A definition with a {@code material_stats} module but no {@code part_stats} module has
+     * material slots and zero parts, which is a shape the planner handles by falling back to a
+     * representative part per stat type; Tinkers' own ancient tools (battlesign, melting pan, minotaur
+     * axe, swasher, war pick) and its travelers_* / slime_* armour are all exactly that.
      */
     public static boolean isPlannable(ToolDefinition definition) {
+        int stats = ToolMaterialHook.stats(definition).size();
+        if (stats == 0) return false;
         int parts = ToolPartsHook.parts(definition).size();
-        return parts > 0 && parts == ToolMaterialHook.stats(definition).size();
+        return parts == 0 || parts == stats;
+    }
+
+    /** The part backing a material slot, or null when the definition has no parts */
+    @Nullable
+    public IToolPart partAt(int index) {
+        return index >= 0 && index < toolParts.length ? toolParts[index] : null;
+    }
+
+    /** Whether this tool is assembled from parts, and so can be built at a tinker station */
+    public boolean hasParts() {
+        return toolParts.length > 0;
     }
 
     /**

@@ -8,25 +8,32 @@ import net.minecraft.client.gui.components.Button.CreateNarration;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import com.xinian.tconplanner.screen.PlannerScreen;
+import com.xinian.tconplanner.util.ToolPartLookup;
 import org.jetbrains.annotations.NotNull;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
+import slimeknights.tconstruct.library.materials.stats.MaterialStatsId;
 import slimeknights.tconstruct.library.tools.part.IToolPart;
+
+import javax.annotation.Nullable;
 
 public class ToolPartButton extends Button {
 
     private final ItemStack stack;
     private final IMaterial material;
+    /** Null for a tool with no parts; the icon then comes from {@link ToolPartLookup} */
+    @Nullable
     public final IToolPart part;
     private final PlannerScreen parent;
     public final int index;
 
-    public ToolPartButton(int index, int x, int y, IToolPart part, IMaterial material, PlannerScreen parent){
+    public ToolPartButton(int index, int x, int y, @Nullable IToolPart part, MaterialStatsId statType,
+                          IMaterial material, PlannerScreen parent){
         super(x, y, 16, 16, Component.literal(""), button -> parent.setSelectedPart(index), DEFAULT_NARRATION);
         this.index = index;
         this.part = part;
         this.parent = parent;
         this.material = material;
-        stack = material == null ? new ItemStack(part.asItem()) : part.withMaterialForDisplay(material.getIdentifier());
+        this.stack = ToolPartLookup.display(statType, part, material);
     }
 
     private static final CreateNarration DEFAULT_NARRATION = (p_253298_) -> p_253298_.get();

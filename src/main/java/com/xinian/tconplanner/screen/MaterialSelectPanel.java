@@ -11,6 +11,7 @@ import com.xinian.tconplanner.screen.buttons.MatPageButton;
 import com.xinian.tconplanner.screen.buttons.MaterialButton;
 import com.xinian.tconplanner.util.JECharactersIntegration;
 import com.xinian.tconplanner.util.MaterialSort;
+import com.xinian.tconplanner.util.ToolPartLookup;
 import com.xinian.tconplanner.util.TranslationUtil;
 import slimeknights.tconstruct.library.materials.MaterialRegistry;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
@@ -19,6 +20,7 @@ import slimeknights.tconstruct.library.materials.stats.MaterialStatsId;
 import slimeknights.tconstruct.library.tools.part.IToolPart;
 
 import java.awt.*;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -42,10 +44,13 @@ public class MaterialSelectPanel extends PlannerPanel{
 
 
         BaseBlueprint<?> blueprint = parent.blueprint;
-        //Add material list for the tool part
-        IToolPart part = (IToolPart) blueprint.toolParts[parent.selectedPart];
-        List<IMaterial> usable = MaterialRegistry.getMaterials().stream()
-                .filter(part::canUseMaterial)
+        //Add material list for the material slot
+        IToolPart part = blueprint.partAt(parent.selectedPart);
+        MaterialStatsId statsId = blueprint.statTypes[parent.selectedPart];
+        List<IMaterial> usable = candidateMaterials(blueprint).stream()
+                //Exactly what IToolPart.canUseMaterial does - it delegates to its own stat type - but
+                //asks the slot directly, so a slot with no part behind it filters the same way
+                .filter(mat -> statsId.canUseMaterial(mat.getIdentifier()))
                 .filter(mat -> {
                     if (parent.materialSearch == null || parent.materialSearch.isEmpty()) {
                         return true;
@@ -64,14 +69,13 @@ public class MaterialSelectPanel extends PlannerPanel{
                 })
                 .collect(Collectors.toList());
 
-        MaterialStatsId statsId = part.getStatType();
         if(parent.sorter != null)usable.sort((o1, o2) -> parent.sorter.compare(o1, o2, statsId) * -1);
         int loopMin = parent.materialPage*materialPageSize;
         int loopMax = Math.min(usable.size(), (parent.materialPage+1)*materialPageSize);
         for (int i = loopMin; i < loopMax; i++) {
             int posIndex = i - loopMin;
             IMaterial mat = usable.get(i);
-            MaterialButton data = new MaterialButton(mat, part.withMaterialForDisplay(mat.getIdentifier()), (posIndex % 9) * 18 + 8, 2 + (posIndex / 9) * 18, parent);
+            MaterialButton data = new MaterialButton(mat, ToolPartLookup.display(statsId, part, mat), (posIndex % 9) * 18 + 8, 2 + (posIndex / 9) * 18, parent);
             if(blueprint.materials[parent.selectedPart] == mat)data.selected = true;
             addChild(data);
         }
@@ -84,7 +88,7 @@ public class MaterialSelectPanel extends PlannerPanel{
         addChild(rightPage);
 
         Class<? extends IMaterialStats> statClass = null;
-        IMaterialStats defaultStats = MaterialRegistry.getInstance().getDefaultStats(part.getStatType());
+        IMaterialStats defaultStats = MaterialRegistry.getInstance().getDefaultStats(statsId);
         if (defaultStats != null) {
             statClass = defaultStats.getClass();
         }
@@ -97,6 +101,22 @@ public class MaterialSelectPanel extends PlannerPanel{
                         .withColor(sort == parent.sorter ? Color.WHITE : new Color(0.4f, 0.4f, 0.4f)).withSound(SoundEvents.PAINTING_PLACE));
             }
         }
+    }
+
+    /**
+     * The pool of materials a slot may draw from.
+     * <p>
+     * {@code MaterialRegistry.getMaterials()} is the <em>visible</em> list, which is the right pool for
+     * a tool built at a station: a hidden material is one no recipe produces a part in, so offering it
+     * would plan something uncraftable. A tool with no parts is not built at a station at all - nothing
+     * about it is craftable - so the same filter only removes the materials such a tool actually ships
+     * with. {@code tconstruct:ancient} is the one hidden material Tinkers defines, and it is what four
+     * of the five ancient tools are made of.
+     */
+    private static Collection<IMaterial> candidateMaterials(BaseBlueprint<?> blueprint) {
+        return blueprint.hasParts()
+                ? MaterialRegistry.getMaterials()
+                : MaterialRegistry.getInstance().getAllMaterials();
     }
 
     private static EditBox obtainSearchBox(PlannerScreen parent, int width) {

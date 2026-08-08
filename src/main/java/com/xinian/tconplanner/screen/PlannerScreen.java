@@ -35,9 +35,8 @@ import slimeknights.tconstruct.library.recipe.modifiers.adding.IDisplayModifierR
 import slimeknights.tconstruct.library.recipe.tinkerstation.ITinkerStationRecipe;
 import slimeknights.tconstruct.library.tools.definition.module.ToolHooks;
 import slimeknights.tconstruct.library.tools.definition.module.material.PartsModule;
-import slimeknights.tconstruct.library.tools.definition.module.material.ToolPartsHook;
+import slimeknights.tconstruct.library.materials.stats.MaterialStatsId;
 import slimeknights.tconstruct.library.tools.nbt.ToolStack;
-import slimeknights.tconstruct.library.tools.part.IToolPart;
 import slimeknights.tconstruct.library.tools.part.ToolPartItem;
 import slimeknights.tconstruct.tables.client.inventory.TinkerStationScreen;
 
@@ -435,16 +434,18 @@ public class PlannerScreen extends Screen {
             return;
         }
         Random random = new Random();
-        List<IToolPart> parts = ToolPartsHook.parts(blueprint.toolDefinition);
-        List<IMaterial> allMaterials = MaterialRegistry.getMaterials().stream()
-                .filter(mat -> !mat.isHidden())
-                .toList();
+        //Driven by the material slots rather than the parts, so a tool that has no parts - an ancient
+        //tool, say - rolls all of its slots instead of none of them. Hidden materials stay out of the
+        //roll for a tool that can be built at a station, and are the only thing one that cannot is
+        //made of, matching what the material list itself offers.
+        Collection<IMaterial> pool = blueprint.hasParts()
+                ? MaterialRegistry.getMaterials().stream().filter(mat -> !mat.isHidden()).toList()
+                : MaterialRegistry.getInstance().getAllMaterials();
 
-        int count = Math.min(parts.size(), blueprint.materials.length);
-        for (int i = 0; i < count; i++) {
-            IToolPart part = parts.get(i);
-            List<IMaterial> usable = allMaterials.stream()
-                    .filter(mat -> part.canUseMaterial(mat.getIdentifier()))
+        for (int i = 0; i < blueprint.materials.length; i++) {
+            MaterialStatsId statType = blueprint.statTypes[i];
+            List<IMaterial> usable = pool.stream()
+                    .filter(mat -> statType.canUseMaterial(mat.getIdentifier()))
                     .toList();
             if (!usable.isEmpty()) {
                 blueprint.materials[i] = usable.get(random.nextInt(usable.size()));

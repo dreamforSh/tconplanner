@@ -30,8 +30,10 @@ public class BlueprintTopPanel extends PlannerPanel{
         List<TCSlotPos> positions = blueprint.plannable.getSlotPos();
         for(int i = 0; i < blueprint.materials.length; i++){
             TCSlotPos pos = positions.get(i);
-            IToolPart part = (IToolPart) blueprint.toolParts[i];
-            addChild(new ToolPartButton(i, pos.getX(), pos.getY(), part, blueprint.materials[i], parent));
+            //Null for a tool with no parts; ToolPartButton falls back to a representative part
+            IToolPart part = blueprint.partAt(i);
+            addChild(new ToolPartButton(i, pos.getX(), pos.getY(), part, blueprint.statTypes[i],
+                    blueprint.materials[i], parent));
         }
 
 

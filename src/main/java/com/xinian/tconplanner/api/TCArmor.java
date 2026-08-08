@@ -9,7 +9,7 @@ import net.minecraft.world.item.ItemStack;
 import com.xinian.tconplanner.data.BaseBlueprint;
 import slimeknights.tconstruct.common.TinkerTags;
 import slimeknights.tconstruct.library.tools.definition.ToolDefinition;
-import slimeknights.tconstruct.library.tools.definition.module.material.ToolPartsHook;
+import slimeknights.tconstruct.library.tools.definition.module.material.ToolMaterialHook;
 import slimeknights.tconstruct.library.tools.helper.ToolBuildHandler;
 import slimeknights.tconstruct.library.tools.item.IModifiable;
 import slimeknights.tconstruct.library.tools.layout.LayoutSlot;
@@ -70,7 +70,9 @@ public class TCArmor implements IPlannable {
     @Override
     public List<TCSlotPos> getSlotPos() {
         List<TCSlotPos> pos = new ArrayList<>();
-        int parts = ToolPartsHook.parts(getToolDefinition()).size();
+        //Material slots, not parts: the screens lay out one slot per material, and a piece with a
+        //material_stats module but no part_stats module has materials and no parts at all
+        int parts = ToolMaterialHook.stats(getToolDefinition()).size();
         int centeredX = 32;
         int startY = 49 - (parts * 9);
 
