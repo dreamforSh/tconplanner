@@ -1,9 +1,7 @@
 package com.xinian.tconplanner.screen;
 
 import com.google.common.collect.Lists;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
@@ -14,7 +12,6 @@ import com.xinian.tconplanner.screen.buttons.MaterialButton;
 import com.xinian.tconplanner.util.JECharactersIntegration;
 import com.xinian.tconplanner.util.MaterialSort;
 import com.xinian.tconplanner.util.TranslationUtil;
-import org.jetbrains.annotations.NotNull;
 import slimeknights.tconstruct.library.materials.MaterialRegistry;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
 import slimeknights.tconstruct.library.materials.stats.IMaterialStats;
@@ -23,7 +20,6 @@ import slimeknights.tconstruct.library.tools.part.IToolPart;
 
 import java.awt.*;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class MaterialSelectPanel extends PlannerPanel{
@@ -35,25 +31,14 @@ public class MaterialSelectPanel extends PlannerPanel{
     public MaterialSelectPanel(int x, int y, int width, int height, PlannerScreen parent) {
         super(x, y, width, height, parent);
 
-        //搜索框位置
-        int searchY = 90;
-        this.searchBox = new EditBox(Minecraft.getInstance().font,
-                8, searchY, width - 16, 14,
-                TranslationUtil.createComponent("search"));
-        this.searchBox.setMaxLength(50);
-        this.searchBox.setValue(parent.materialSearch);
-        // 调用parent.refreshMaterialList()，然后在PlannerScreen中安全移除旧面板
-        this.searchBox.setResponder(text -> {
-            parent.materialSearch = text.toLowerCase();
-            parent.materialPage = 0; // 重置到第一页
-            parent.refreshMaterialList();
-        });
+        //One instance re-mounted per rebuild, so text, caret, selection and focus survive the rebuild
+        //every keystroke triggers - same reasoning as ModifierPanel.obtainSearchBox
+        this.searchBox = obtainSearchBox(parent, width - 16);
+        //addChild rebases coordinates, so they must be re-set each build rather than accumulated
+        this.searchBox.x = 8;
+        this.searchBox.y = 90;
+        this.searchBox.width = width - 16;
         addChild(this.searchBox);
-        //The box is rebuilt on every keystroke, so focus has to be carried across explicitly
-        if (parent.materialSearchFocused) {
-            this.searchBox.setFocused(true);
-            this.searchBox.moveCursorToEnd();
-        }
 
 
         BaseBlueprint<?> blueprint = parent.blueprint;
@@ -65,10 +50,10 @@ public class MaterialSelectPanel extends PlannerPanel{
                     if (parent.materialSearch == null || parent.materialSearch.isEmpty()) {
                         return true;
                     }
-                    String search = parent.materialSearch.toLowerCase();
-                    String id = mat.getIdentifier().toString().toLowerCase();
+                    String search = parent.materialSearch.toLowerCase(java.util.Locale.ROOT);
+                    String id = mat.getIdentifier().toString().toLowerCase(java.util.Locale.ROOT);
                     String translationKey = "material." + mat.getIdentifier().toString().replace(':', '.');
-                    String name = Component.translatable(translationKey).getString().toLowerCase();
+                    String name = Component.translatable(translationKey).getString().toLowerCase(java.util.Locale.ROOT);
                     if (id.contains(search) || name.contains(search)) {
                         return true;
                     }
@@ -114,11 +99,27 @@ public class MaterialSelectPanel extends PlannerPanel{
         }
     }
 
-    @Override
-    public void render(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
-        //先渲染 panel 的子控件，再把搜索框渲染到最上层，保证不会被覆盖
-        super.render(graphics, mouseX, mouseY, partialTicks);
-        searchBox.render(graphics, mouseX, mouseY, partialTicks);
+    private static EditBox obtainSearchBox(PlannerScreen parent, int width) {
+        EditBox box = parent.materialSearchBox;
+        if (box == null) {
+            box = new EditBox(Minecraft.getInstance().font, 0, 0, width, 14,
+                    TranslationUtil.createComponent("search"));
+            box.setMaxLength(50);
+            //The constructor's Component is narration only; this is the visible empty-state hint
+            box.setHint(TranslationUtil.createComponent("search"));
+            box.setValue(parent.materialSearch);
+            box.setResponder(text -> {
+                if (text.equals(parent.materialSearch)) return;
+                //Stored as typed; case folding happens at comparison time so the box shows what you wrote
+                parent.materialSearch = text;
+                parent.materialPage = 0;
+                parent.refreshMaterialList();
+            });
+            parent.materialSearchBox = box;
+        } else if (!box.getValue().equals(parent.materialSearch)) {
+            box.setValue(parent.materialSearch);
+        }
+        return box;
     }
 
     @Override

@@ -108,6 +108,7 @@ public class ModifierPanel extends PlannerPanel {
             box = new EditBox(Minecraft.getInstance().font, 0, 0, width, SEARCH_HEIGHT,
                     TranslationUtil.createComponent("modifiers.search"));
             box.setMaxLength(50);
+            box.setHint(TranslationUtil.createComponent("modifiers.search"));
             box.setValue(parent.modifierSearch);
             box.setResponder(text -> {
                 //Also stops the setValue below from re-entering

@@ -7,13 +7,13 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Button.CreateNarration;
 import net.minecraft.network.chat.Component;
 import com.xinian.tconplanner.screen.PlannerScreen;
+import com.xinian.tconplanner.screen.buttons.modifiers.ModifierTheme;
 
 public class TextButton extends Button {
 
     private final PlannerScreen parent;
     private final Runnable onPress;
     private int color = 0xff_ff_ff;
-    private Component tooltip = null;
 
     public TextButton(int x, int y, Component text, Runnable onPress, PlannerScreen parent) {
         super(x, y, 58, 18, text, e -> onPress.run(), DEFAULT_NARRATION);
@@ -25,11 +25,6 @@ public class TextButton extends Button {
 
     public TextButton withColor(int color){
         this.color = color;
-        return this;
-    }
-
-    public TextButton withTooltip(Component tooltip){
-        this.tooltip = tooltip;
         return this;
     }
 
@@ -55,16 +50,10 @@ public class TextButton extends Button {
         }
         parent.blit(graphics, x + width - 1, y, PLATE_U + 47, PLATE_V, 1, height);
         RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
-        graphics.drawCenteredString(Minecraft.getInstance().font, getMessage(), x + width/2, y + 5, isHovered ? 0xffffffff : 0xa0ffffff);
-        if(isHovered){
-            renderToolTip(graphics, mouseX, mouseY);
-        }
-    }
-
-    public void renderToolTip(GuiGraphics graphics, int mouseX, int mouseY) {
-        if(tooltip != null) {
-            parent.postRenderTasks.add(() -> graphics.renderTooltip(Minecraft.getInstance().font, tooltip, mouseX, mouseY));
-        }
+        //Shrink to fit rather than overflow: ru_ru's longer labels ran past the plate and, in the side
+        //panels, past the panel itself
+        ModifierTheme.fittedCenteredString(graphics, Minecraft.getInstance().font, getMessage(),
+                x + width / 2, y + 5, width - 6, isHovered ? 0xffffffff : 0xa0ffffff);
     }
 
     @Override

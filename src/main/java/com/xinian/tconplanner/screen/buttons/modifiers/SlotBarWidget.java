@@ -38,9 +38,12 @@ public class SlotBarWidget extends AbstractWidget {
     public static final int HEIGHT = 13;
     private static final int GAP = 2;
     private static final int BAR_WIDTH = 3;
-    /** Types that stay visible even at zero, because "you have none left" is information too */
+    /**
+     * Types that stay visible even at zero, because "you have none left" is information too. Any other
+     * type the tool actually uses is appended; chip width divides the available space, so there is no
+     * fixed cap - a cap of three left room for exactly one dynamic type and silently hid the rest.
+     */
     private static final SlotType[] ALWAYS_SHOWN = {SlotType.UPGRADE, SlotType.ABILITY};
-    private static final int MAX_CHIPS = 3;
 
     private record Chip(SlotType type, int free, int creative) {}
 
@@ -57,7 +60,6 @@ public class SlotBarWidget extends AbstractWidget {
             chips.add(chipFor(type, tool, blueprint));
         }
         for(SlotType type : SlotType.getAllSlotTypes()){
-            if(chips.size() >= MAX_CHIPS) break;
             if(type == SlotType.UPGRADE || type == SlotType.ABILITY) continue;
             if(isRelevant(type, tool, blueprint)) chips.add(chipFor(type, tool, blueprint));
         }

@@ -45,9 +45,8 @@ public class MaterialButton extends Button {
         this.stack = stack;
         this.parent = parent;
         if (parent.blueprint.isComplete()) {
-            BaseBlueprint<?> cloned = parent.blueprint.clone();
-            cloned.materials[parent.selectedPart] = material;
-            RecipeResult<?> result = cloned.validate();
+            //In-place swap instead of clone(): cloning round-trips through NBT, once per material tile
+            RecipeResult<?> result = parent.blueprint.validateWithMaterial(parent.selectedPart, material);
             if (result.hasError()) {
                 errorText = result.getMessage().copy().withStyle(ChatFormatting.DARK_RED);
             }

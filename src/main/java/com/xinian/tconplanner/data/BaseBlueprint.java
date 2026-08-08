@@ -252,6 +252,25 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
         return validateWith(modStack);
     }
 
+    /**
+     * Validates this blueprint with one part swapped for a different material, without copying it.
+     * <p>
+     * {@code MaterialSelectPanel} builds one button per material and each used to {@link #clone} the
+     * blueprint first - a full NBT round-trip, 27 times per page turn - purely to change one array slot.
+     * Swapping in place and restoring in a {@code finally} is exactly equivalent, since nothing on this
+     * path caches against the blueprint.
+     */
+    public RecipeResult<ItemStack> validateWithMaterial(int slot, IMaterial material) {
+        if (slot < 0 || slot >= materials.length) return validate();
+        IMaterial previous = materials[slot];
+        try {
+            materials[slot] = material;
+            return validate();
+        } finally {
+            materials[slot] = previous;
+        }
+    }
+
     /** Replays an arbitrary modifier order against this blueprint's parts, in application order */
     public RecipeResult<ItemStack> validateWith(ModifierStack order) {
         if (!isComplete()) return RecipeResult.pass();

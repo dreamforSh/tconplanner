@@ -83,21 +83,6 @@ public class PaginatedPanel<T extends AbstractWidget> extends PlannerPanel {
         refresh(page);
     }
 
-    public void makeVisible(int index, boolean refresh){
-        if(index >= 0 && index < allChildren.size()){
-            int row = index/columns;
-            int page = parent.getCacheValue(pageCacheKey(cachePrefix), 0);
-            if(page > row){
-                parent.setCacheValue(pageCacheKey(cachePrefix), row);
-                if(refresh)refresh(row);
-            }
-            else if(page + rows - 1 < row){
-                parent.setCacheValue(pageCacheKey(cachePrefix), Math.max(0, row - rows + 1));
-                if(refresh)refresh(row);
-            }
-        }
-    }
-
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float p_230430_4_) {
         super.render(graphics, mouseX, mouseY, p_230430_4_);
@@ -129,6 +114,11 @@ public class PaginatedPanel<T extends AbstractWidget> extends PlannerPanel {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        //Release outside the panel never reaches mouseReleased, so a stale drag would hijack the next
+        //press anywhere on the screen; re-check the button here rather than trusting the release
+        if (button != 0) {
+            isDragging = false;
+        }
         if (isDragging) {
             int clickedPage = (int) Math.min(Math.max(((mouseY - y) / height) * totalPages, 0), totalPages - 1);
             setPage(clickedPage);

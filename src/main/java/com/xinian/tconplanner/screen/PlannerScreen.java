@@ -86,6 +86,8 @@ public class PlannerScreen extends Screen {
     //
     public String materialSearch = "";
     public boolean materialSearchFocused = false;
+    /** Outlives the panel rebuilds so the caret and selection are not reset on every keystroke */
+    public EditBox materialSearchBox;
 
     public PlannerScreen(TinkerStationScreen child) {
         super(TranslationUtil.createComponent("name"));
@@ -178,7 +180,10 @@ public class PlannerScreen extends Screen {
         }, this).withColor(currentMode == PlannerMode.ARMORS ? 0x50ff50 : 0xffffff).withWidth(48));
 
 
-        titleText = blueprint == null ? TranslationUtil.createComponent("notool") : blueprint.plannable.getName();
+        titleText = blueprint != null ? blueprint.plannable.getName()
+                //The empty-state prompt has to match the tab you are on, or Armors mode invites you to
+                //"Select Tool" above a list containing no tools
+                : TranslationUtil.createComponent(currentMode == PlannerMode.ARMORS ? "noarmor" : "notool");
 
         if (currentMode == PlannerMode.TOOLS) {
             addRenderableWidget(new ToolSelectPanel(panelX, top + 22, panelWidth, toolSpace * 3 + 23 + 4, tools, this));
@@ -278,7 +283,9 @@ public class PlannerScreen extends Screen {
         else if (bp instanceof Blueprint) currentMode = PlannerMode.TOOLS;
         this.materialPage = 0;
         sorter = null;
-        //A different tool has a different modifier list, so neither the query nor the cache carries over
+        //A different tool has a different modifier and material list, so no query or cache carries over
+        materialSearch = "";
+        materialSearchFocused = false;
         modifierSearch = "";
         modifierTab = ModifierPanel.TAB_ALL;
         modifierSearchFocused = false;

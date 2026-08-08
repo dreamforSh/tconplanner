@@ -76,6 +76,12 @@ public class ExtIconButton extends Button {
 
     @Override
     public void playDownSound(@NotNull SoundManager handler) {
-        if(pressSound != null)handler.play(SimpleSoundInstance.forUI(pressSound, 1.0F));
+        //Fall through rather than staying silent: nothing calls withSound on the two station-screen
+        //buttons, so this override made both of them give no click feedback at all
+        if (pressSound == null) {
+            super.playDownSound(handler);
+            return;
+        }
+        handler.play(SimpleSoundInstance.forUI(pressSound, 1.0F));
     }
 }

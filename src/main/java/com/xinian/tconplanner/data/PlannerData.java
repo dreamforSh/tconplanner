@@ -28,7 +28,6 @@ public class PlannerData {
     public BaseBlueprint<?> starred;
 
     private final File bookmarkFile;
-    private final File exportFolder;
     private boolean hasLoaded;
     /** Set when a read failed outright; blocks save() so a bad read cannot erase the file */
     private boolean loadFailed;
@@ -43,11 +42,9 @@ public class PlannerData {
 
     public PlannerData(File folder){
         bookmarkFile = new File(folder, "bookmark.dat");
-        exportFolder = new File(folder, "exports");
         try {
             //noinspection ResultOfMethodCallIgnored
             folder.mkdir();
-            exportFolder.mkdir();
             if (!bookmarkFile.exists()) {
                 if (bookmarkFile.createNewFile()) {
                     save();
@@ -225,10 +222,6 @@ public class PlannerData {
         return null;
     }
 
-    public File getExportFolder() {
-        return exportFolder;
-    }
-
     public boolean addBlueprint(BaseBlueprint<?> blueprint) {
         if (blueprint == null || !blueprint.isComplete()) {
             return false;
@@ -240,14 +233,4 @@ public class PlannerData {
         return false;
     }
 
-    public boolean removeBlueprint(BaseBlueprint<?> blueprint) {
-        return saved.removeIf(bp -> bp.equals(blueprint));
-    }
-
-    public void clearAll() {
-        saved.clear();
-        starred = null;
-        unresolved.clear();
-        unresolvedStar = null;
-    }
 }

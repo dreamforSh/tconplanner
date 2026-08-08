@@ -39,8 +39,12 @@ public class ModifierEvaluator {
     /** State of one modifier relative to the current blueprint */
     public record Evaluation(ModifierStateEnum state, @Nullable Component error, int level) {}
 
-    /** One applicable modifier recipe with everything the list needs to filter and sort it */
-    public record Candidate(IDisplayModifierRecipe recipe, Modifier modifier, Component displayName, String searchKey) {}
+    /**
+     * One applicable modifier recipe with everything the list needs to filter and sort it.
+     * {@code plainName} is resolved once so sorting does not re-render the Component O(n log n) times.
+     */
+    public record Candidate(IDisplayModifierRecipe recipe, Modifier modifier, Component displayName,
+                            String plainName, String searchKey) {}
 
     private CompoundTag signature;
     private final Map<String, RecipeResult<?>> validations = new HashMap<>();
@@ -62,10 +66,13 @@ public class ModifierEvaluator {
         }
     }
 
-    /** Forces every cache to miss, including the tool-scoped candidate lists */
+    /**
+     * Forces the blueprint-scoped caches to miss. The candidate lists are keyed by tool definition and
+     * do not depend on the blueprint at all, so they are deliberately kept - and they die with the
+     * screen anyway, which is also when a language or datapack change could have staled them.
+     */
     public void invalidate(){
         signature = null;
-        candidates.clear();
     }
 
     /**
@@ -84,12 +91,13 @@ public class ModifierEvaluator {
                 if(!applies) continue;
                 Modifier modifier = recipe.getDisplayResult().getModifier();
                 Component name = modifier.getDisplayName();
-                String searchKey = (name.getString() + '\n' + modifier.getId()).toLowerCase(Locale.ROOT);
-                found.add(new Candidate(recipe, modifier, name, searchKey));
+                String plain = name.getString();
+                String searchKey = (plain + '\n' + modifier.getId()).toLowerCase(Locale.ROOT);
+                found.add(new Candidate(recipe, modifier, name, plain, searchKey));
             }
             //Collator so Chinese names sort by pinyin rather than by codepoint
             Collator collator = Collator.getInstance();
-            found.sort((a, b) -> collator.compare(a.displayName().getString(), b.displayName().getString()));
+            found.sort((a, b) -> collator.compare(a.plainName(), b.plainName()));
             return found;
         });
     }

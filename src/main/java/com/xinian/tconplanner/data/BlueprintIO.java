@@ -2,24 +2,18 @@ package com.xinian.tconplanner.data;
 
 import com.xinian.tconplanner.TConPlanner;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtIo;
 
 import java.io.*;
-import java.security.SecureRandom;
-import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class BlueprintIO {
 
-    private static final String EXPORT_EXTENSION = ".tconbp";
-    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
-    private static final SecureRandom RANDOM = new SecureRandom();
-    private static final String CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int CODE_LENGTH = 16;
     /** A real blueprint encodes to a few hundred bytes; anything far past that is not one */
     private static final int MAX_CODE_BYTES = 64 * 1024;
     
+    /** Legacy machine-local short codes; read-only now that exports carry the full payload */
     private static final Map<String, String> codeCache = new HashMap<>();
     private static File codeStoreFile;
 
@@ -42,28 +36,6 @@ public class BlueprintIO {
         }
     }
     
-    private static void saveCodeStore() {
-        if (codeStoreFile == null) {
-            return;
-        }
-        try {
-            codeStoreFile.getParentFile().mkdirs();
-            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(codeStoreFile))) {
-                oos.writeObject(new HashMap<>(codeCache));
-            }
-        } catch (Exception e) {
-            TConPlanner.LOGGER.error("Failed to save code store", e);
-        }
-    }
-
-    public static String generateCode() {
-        StringBuilder code = new StringBuilder();
-        for (int i = 0; i < CODE_LENGTH; i++) {
-            code.append(CHARS.charAt(RANDOM.nextInt(CHARS.length())));
-        }
-        return code.toString();
-    }
-
     /**
      * The portable code for a blueprint - the thing you can actually hand to someone else.
      * <p>
@@ -136,59 +108,6 @@ public class BlueprintIO {
         return null;
     }
 
-    public static List<BaseBlueprint<?>> codeToBlueprints(String code) {
-        List<BaseBlueprint<?>> result = new ArrayList<>();
-        if (code == null || code.isEmpty()) {
-            return result;
-        }
-        
-        // 先尝试作为短码查找（只对短码做大写归一化，见 importFromCode）
-        code = code.trim();
-        String shortCode = code.toUpperCase(Locale.ROOT);
-        if (shortCode.length() == CODE_LENGTH && codeCache.containsKey(shortCode)) {
-            BaseBlueprint<?> bp = codeToBlueprint(codeCache.get(shortCode));
-            if (bp != null) {
-                result.add(bp);
-            }
-            return result;
-        }
-
-        // 尝试作为完整代码解码
-        try {
-            byte[] bytes = Base64.getDecoder().decode(code);
-            if (bytes.length > MAX_CODE_BYTES) {
-                TConPlanner.LOGGER.warn("Ignoring blueprint code: {} bytes exceeds the {} byte limit", bytes.length, MAX_CODE_BYTES);
-                return result;
-            }
-            ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-            CompoundTag data = NbtIo.readCompressed(bais);
-            
-            if (data.contains("blueprint")) {
-                CompoundTag bpTag = data.getCompound("blueprint");
-                BaseBlueprint<?> bp = deserializeBlueprint(bpTag);
-                if (bp != null) {
-                    result.add(bp);
-                }
-            } else if (data.contains("blueprints")) {
-                ListTag list = data.getList("blueprints", 10);
-                for (int i = 0; i < list.size(); i++) {
-                    try {
-                        CompoundTag bpTag = list.getCompound(i);
-                        BaseBlueprint<?> bp = deserializeBlueprint(bpTag);
-                        if (bp != null) {
-                            result.add(bp);
-                        }
-                    } catch (Exception e) {
-                        TConPlanner.LOGGER.warn("Failed to decode blueprint at index {}", i, e);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            TConPlanner.LOGGER.error("Failed to decode blueprints", e);
-        }
-        return result;
-    }
-
     private static BaseBlueprint<?> deserializeBlueprint(CompoundTag tag) {
         if (tag.contains("tool")) {
             return Blueprint.fromNBT(tag);
@@ -198,7 +117,4 @@ public class BlueprintIO {
         return null;
     }
 
-    public static String getExportExtension() {
-        return EXPORT_EXTENSION;
-    }
 }

@@ -47,7 +47,9 @@ public class TCArmor implements IPlannable {
 
     @Override
     public ItemStack getRenderStack() {
-        return renderArmor.copy();
+        //Not a copy: this is read once per frame by BlueprintTopPanel purely to render, and TCTool's
+        //equivalent already returns the shared instance
+        return renderArmor;
     }
 
     @Override

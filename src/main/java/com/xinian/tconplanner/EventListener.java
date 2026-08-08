@@ -22,6 +22,7 @@ import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import javax.annotation.Nullable;
 import com.xinian.tconplanner.api.TCArmor;
 import com.xinian.tconplanner.api.TCTool;
 import com.xinian.tconplanner.data.Blueprint;
@@ -63,21 +64,36 @@ public class EventListener {
 
     private static StationSlotLayout layout = null;
     private static boolean starredLayout = false;
-    private static final Field currentLayoutField;
     private static SlotButtonItem starredButton = null;
     private static boolean forceNextUpdate = false;
     private static TinkerStationButtonsWidget buttonScreen;
-    private static final Field buttonsScreenField;
+    private static Field buttonsScreenField;
+    private static boolean buttonsScreenUnavailable;
 
-    static {
+    /**
+     * Reads Tinkers' protected {@code buttonsScreen}, which is only needed to hang the star badge on the
+     * layout selector.
+     * <p>
+     * Resolved lazily and degrading to null: this used to live in a static initialiser that rethrew as a
+     * RuntimeException, so a Tinkers update that renamed the field would have taken the whole mod - and
+     * with it the game - down at class-load time, over a cosmetic badge. A Forge access transformer
+     * cannot reach it, since ATs only apply to the Minecraft artifact, so reflection stays.
+     * <p>
+     * The sibling {@code currentLayout} lookup is gone entirely: {@code getCurrentLayout()} is public.
+     */
+    @Nullable
+    private static TinkerStationButtonsWidget readButtonsScreen(TinkerStationScreen screen) {
+        if (buttonsScreenUnavailable) return null;
         try {
-            currentLayoutField = TinkerStationScreen.class.getDeclaredField("currentLayout");
-            currentLayoutField.setAccessible(true);
-
-            buttonsScreenField = TinkerStationScreen.class.getDeclaredField("buttonsScreen");
-            buttonsScreenField.setAccessible(true);
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
+            if (buttonsScreenField == null) {
+                buttonsScreenField = TinkerStationScreen.class.getDeclaredField("buttonsScreen");
+                buttonsScreenField.setAccessible(true);
+            }
+            return (TinkerStationButtonsWidget) buttonsScreenField.get(screen);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            buttonsScreenUnavailable = true;
+            TConPlanner.LOGGER.error("Could not read TinkerStationScreen.buttonsScreen; the starred-layout badge will not be shown", e);
+            return null;
         }
     }
 
@@ -108,10 +124,10 @@ public class EventListener {
             PlannerData data = TConPlanner.DATA;
             try {
                 data.firstLoad();
-                buttonScreen = (TinkerStationButtonsWidget)buttonsScreenField.get(screen);
             } catch (Exception ex) {
-                TConPlanner.LOGGER.error("Failed to load planner data or access Tinkers' screen fields", ex);
+                TConPlanner.LOGGER.error("Failed to load planner data", ex);
             }
+            buttonScreen = readButtonsScreen(screen);
             updateLayout(screen, true);
             forceNextUpdate = true;
             int x = screen.cornerX + Config.CONFIG.buttonX.get(), y = screen.cornerY + Config.CONFIG.buttonY.get();
@@ -224,7 +240,7 @@ public class EventListener {
 
     private static void updateLayout(TinkerStationScreen screen, boolean force) {
         try {
-            StationSlotLayout newLayout = (StationSlotLayout) currentLayoutField.get(screen);
+            StationSlotLayout newLayout = screen.getCurrentLayout();
             if(!force && newLayout == layout)return;
             forceNextUpdate = false;
             layout = newLayout;
@@ -233,10 +249,13 @@ public class EventListener {
             if(data.starred instanceof Blueprint toolBlueprint){
                 StationSlotLayout starredSlotLayout = toolBlueprint.plannable.getLayout();
                 starredLayout = layout == starredSlotLayout;
-                for (SlotButtonItem button : buttonScreen.getButtons()) {
-                    if(starredSlotLayout == button.getLayout()){
-                        starredButton = button;
-                        foundButton = true;
+                //null when the reflective lookup failed; the badge is cosmetic, so carry on without it
+                if (buttonScreen != null) {
+                    for (SlotButtonItem button : buttonScreen.getButtons()) {
+                        if(starredSlotLayout == button.getLayout()){
+                            starredButton = button;
+                            foundButton = true;
+                        }
                     }
                 }
             }
