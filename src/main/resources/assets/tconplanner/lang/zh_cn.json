@@ -69,5 +69,6 @@
   "gui.tconplanner.import.fail": "导入失败",
   "gui.tconplanner.code.title": "蓝图代码",
   "gui.tconplanner.bookmarks.readonly": "无法读取 %s，为避免覆盖已有收藏，保存已暂停。请将该文件移走后重新打开规划器。",
-  "gui.tconplanner.noarmor": "选择盔甲"
+  "gui.tconplanner.noarmor": "选择盔甲",
+  "gui.tconplanner.tooltip.overflow": "……还有 %1$s 行（调小界面缩放可查看）"
 }

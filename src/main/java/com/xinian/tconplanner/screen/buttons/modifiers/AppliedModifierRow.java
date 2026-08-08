@@ -107,7 +107,7 @@ public class AppliedModifierRow extends AbstractWidget {
                 : null;
         parent.postRenderTasks.add(() -> {
             if(hint != null){
-                graphics.renderTooltip(Minecraft.getInstance().font, hint, mouseX, mouseY);
+                parent.renderTooltip(graphics, hint, mouseX, mouseY);
                 return;
             }
             List<Component> lines = new ArrayList<>();

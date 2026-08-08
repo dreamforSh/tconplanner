@@ -1,7 +1,6 @@
 package com.xinian.tconplanner.screen.buttons;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -33,7 +32,7 @@ public class OutputToolWidget extends AbstractWidget {
     }
 
     public void renderToolTip(GuiGraphics graphics, int mouseX, int mouseY) {
-        parent.postRenderTasks.add(() -> graphics.renderTooltip(Minecraft.getInstance().font, this.stack, mouseX, mouseY));
+        parent.postRenderTasks.add(() -> parent.renderItemTooltip(graphics, this.stack, mouseX, mouseY));
     }
 
     @Override

@@ -99,7 +99,7 @@ public class MaterialButton extends Button {
                 parent.renderComponentTooltip(graphics, tooltip, mouseX, mouseY);
             });
         } else {
-            parent.postRenderTasks.add(() -> graphics.renderTooltip(parent.getFont(), errorText, mouseX, mouseY));
+            parent.postRenderTasks.add(() -> parent.renderTooltip(graphics, errorText, mouseX, mouseY));
         }
     }
 

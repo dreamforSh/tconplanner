@@ -12,13 +12,11 @@ import net.minecraft.world.item.ItemStack;
 import com.xinian.tconplanner.EventListener;
 import com.xinian.tconplanner.screen.PlannerScreen;
 import com.xinian.tconplanner.screen.buttons.BookmarkedButton;
+import com.xinian.tconplanner.screen.tooltip.PlannerTooltip;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ExtItemStackButton extends Button {
 
@@ -60,10 +58,10 @@ public class ExtItemStackButton extends Button {
         RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         graphics.pose().popPose();
         if (this.isHoveredOrFocused()) {
-            EventListener.postRenderQueue.offer(() -> {
-                List<Component> result = Stream.concat(screen.getTooltipFromItem(mc, stack).stream(), tooltips.stream()).collect(Collectors.toList());
-                graphics.renderTooltip(Minecraft.getInstance().font, result, Optional.empty(), mouseX, mouseY);
-            });
+            //The star hint lines are appended to the stack's own tooltip by PlannerTooltip, which also
+            //keeps the whole thing inside the station screen at high GUI Scale
+            EventListener.postRenderQueue.offer(() ->
+                    PlannerTooltip.renderItem(graphics, mc.font, stack, tooltips, mouseX, mouseY));
         }
     }
 }

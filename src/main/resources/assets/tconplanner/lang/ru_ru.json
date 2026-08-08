@@ -69,5 +69,6 @@
   "gui.tconplanner.import.fail": "Не удалось импортировать",
   "gui.tconplanner.code.title": "Код чертежа",
   "gui.tconplanner.bookmarks.readonly": "Не удалось прочитать %s. Сохранение приостановлено, чтобы не перезаписать закладки — переместите файл и откройте планировщик заново.",
-  "gui.tconplanner.noarmor": "Выберите броню"
+  "gui.tconplanner.noarmor": "Выберите броню",
+  "gui.tconplanner.tooltip.overflow": "… ещё %1$s строк (уменьшите масштаб интерфейса)"
 }

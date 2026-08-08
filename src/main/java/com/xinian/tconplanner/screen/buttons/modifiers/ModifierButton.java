@@ -71,7 +71,7 @@ public class ModifierButton extends AbstractWidget {
                 x + width / 2, y + (height - 8) / 2, width - 4, textColor);
 
         if(hovered && tooltip != null){
-            parent.postRenderTasks.add(() -> graphics.renderTooltip(Minecraft.getInstance().font, tooltip, mouseX, mouseY));
+            parent.postRenderTasks.add(() -> parent.renderTooltip(graphics, tooltip, mouseX, mouseY));
         }
     }
 

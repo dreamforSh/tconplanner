@@ -142,6 +142,8 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     implementation fg.deobf("curse.maven:tinkers-construct-74072:7449219")
     implementation fg.deobf("curse.maven:mantle-74924:7563777")
+    //runtimeOnly fg.deobf("curse.maven:modern-ui-352491:6956345")
+
     runtimeOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:${jei_version}")
     //
     //implementation fg.deobf("curse.maven:just-enough-characters-250702:5782908")

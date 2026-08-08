@@ -17,6 +17,7 @@ public class Config {
     public final ForgeConfigSpec.IntValue importButtonXStation;
     public final ForgeConfigSpec.IntValue importButtonYStation;
     public final ForgeConfigSpec.EnumValue<ScrollDirectionEnum> scrollDirection;
+    public final ForgeConfigSpec.EnumValue<TooltipScaleEnum> tooltipScale;
 
     public Config(ForgeConfigSpec.Builder builder){
         builder.push("UI Button");
@@ -29,6 +30,12 @@ public class Config {
         builder.pop();
         builder.push("Planner");
         scrollDirection = builder.comment("The scroll direction for paginated lists").defineEnum("Scroll Direction", ScrollDirectionEnum.DOWN);
+        tooltipScale = builder.comment(
+                "Size the planner draws its tooltips at.",
+                "AUTO keeps the vanilla size and only shrinks a tooltip that would not fit the window.",
+                "THREE_QUARTER and HALF shrink every tooltip, which is useful at GUI Scale 3 and 4 where a",
+                "full tool tooltip is taller than the screen. All three still shrink further if they must.")
+                .defineEnum("Tooltip Scale", TooltipScaleEnum.AUTO);
         builder.pop();
     }
 
@@ -45,6 +52,17 @@ public class Config {
 
         ScrollDirectionEnum(int mult){
             this.mult = mult;
+        }
+    }
+
+    /** Upper bound on tooltip size; a tooltip that still does not fit is shrunk past it anyway */
+    public enum TooltipScaleEnum{
+        AUTO(1f), THREE_QUARTER(0.75f), HALF(0.5f);
+
+        public final float factor;
+
+        TooltipScaleEnum(float factor){
+            this.factor = factor;
         }
     }
 }

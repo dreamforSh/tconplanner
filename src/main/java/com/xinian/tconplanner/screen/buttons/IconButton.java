@@ -2,7 +2,6 @@ package com.xinian.tconplanner.screen.buttons;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Button.CreateNarration;
@@ -55,7 +54,7 @@ public class IconButton extends Button {
     }
 
     public void renderToolTip(@NotNull GuiGraphics graphics, int mouseX, int mouseY) {
-        parent.postRenderTasks.add(() -> graphics.renderTooltip(Minecraft.getInstance().font, this.getMessage(), mouseX, mouseY));
+        parent.postRenderTasks.add(() -> parent.renderTooltip(graphics, this.getMessage(), mouseX, mouseY));
     }
 
     @Override

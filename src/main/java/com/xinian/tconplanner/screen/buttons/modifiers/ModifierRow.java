@@ -173,14 +173,13 @@ public class ModifierRow extends AbstractWidget {
     private void queueStepTooltip(GuiGraphics graphics, int mouseX, int mouseY, @Nullable Component error,
                                   String headerKey, Supplier<ItemStack> preview){
         parent.postRenderTasks.add(() -> {
-            Font font = Minecraft.getInstance().font;
             if(error != null){
-                graphics.renderTooltip(font, error.copy().withStyle(ChatFormatting.RED), mouseX, mouseY);
+                parent.renderTooltip(graphics, error.copy().withStyle(ChatFormatting.RED), mouseX, mouseY);
                 return;
             }
             ItemStack stack = preview.get();
             if(stack.isEmpty()){
-                graphics.renderTooltip(font, TranslationUtil.createComponent(headerKey), mouseX, mouseY);
+                parent.renderTooltip(graphics, TranslationUtil.createComponent(headerKey), mouseX, mouseY);
                 return;
             }
             parent.renderItemTooltip(graphics, stack, mouseX, mouseY);

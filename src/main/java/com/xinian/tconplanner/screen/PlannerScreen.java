@@ -19,6 +19,7 @@ import com.xinian.tconplanner.TConPlanner;
 import com.xinian.tconplanner.api.TCTool;
 import com.xinian.tconplanner.data.Blueprint;
 import com.xinian.tconplanner.data.PlannerData;
+import com.xinian.tconplanner.screen.tooltip.PlannerTooltip;
 import com.xinian.tconplanner.util.MaterialSort;
 import com.xinian.tconplanner.util.ModifierEvaluator;
 import com.xinian.tconplanner.util.TranslationUtil;
@@ -335,12 +336,23 @@ public class PlannerScreen extends Screen {
         return false;
     }
 
+    /**
+     * The three tooltip entry points every widget in the planner uses.
+     * <p>
+     * They all forward to {@link PlannerTooltip}, which wraps and scales the tooltip so it fits the
+     * window at any GUI Scale. Calling {@link GuiGraphics#renderTooltip} from a widget bypasses that and
+     * is why whole-tool tooltips used to run off the bottom of the screen at GUI Scale 3 and 4.
+     */
     public void renderItemTooltip(GuiGraphics graphics, ItemStack stack, int x, int y) {
-        graphics.renderTooltip(font, stack, x, y);
+        PlannerTooltip.renderItem(graphics, font, stack, x, y);
     }
 
     public void renderComponentTooltip(GuiGraphics graphics, List<Component> tooltip, int x, int y) {
-        graphics.renderTooltip(font, tooltip.stream().map(Component::getVisualOrderText).toList(), x, y);
+        PlannerTooltip.render(graphics, font, tooltip, x, y);
+    }
+
+    public void renderTooltip(GuiGraphics graphics, Component tooltip, int x, int y) {
+        PlannerTooltip.render(graphics, font, tooltip, x, y);
     }
 
 

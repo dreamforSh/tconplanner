@@ -69,5 +69,6 @@
   "gui.tconplanner.import.fail": "Import failed",
   "gui.tconplanner.code.title": "Blueprint Code",
   "gui.tconplanner.bookmarks.readonly": "Could not read %s. Saving is paused so your bookmarks are not overwritten - move the file aside and reopen the planner.",
-  "gui.tconplanner.noarmor": "Select Armor"
+  "gui.tconplanner.noarmor": "Select Armor",
+  "gui.tconplanner.tooltip.overflow": "… %1$s more lines (lower your GUI Scale to read them)"
 }

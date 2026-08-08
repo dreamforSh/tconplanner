@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvent;
 import com.xinian.tconplanner.EventListener;
 import com.xinian.tconplanner.screen.PlannerScreen;
+import com.xinian.tconplanner.screen.tooltip.PlannerTooltip;
 import com.xinian.tconplanner.util.Icon;
 import org.jetbrains.annotations.NotNull;
 
@@ -70,7 +71,8 @@ public class ExtIconButton extends Button {
         RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         
         if (this.isHoveredOrFocused()) {
-            EventListener.postRenderQueue.offer(() -> graphics.renderTooltip(Minecraft.getInstance().font, tooltip, mouseX, mouseY));
+            EventListener.postRenderQueue.offer(() ->
+                    PlannerTooltip.render(graphics, Minecraft.getInstance().font, tooltip, mouseX, mouseY));
         }
     }
 
