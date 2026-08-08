@@ -1,6 +1,8 @@
 package com.xinian.tconplanner.data;
 
+import com.xinian.tconplanner.TConPlanner;
 import com.xinian.tconplanner.api.IPlannable;
+import com.xinian.tconplanner.screen.PlannerScreen;
 import com.xinian.tconplanner.util.DummyTinkersStationInventory;
 import com.xinian.tconplanner.util.ModifierStack;
 import net.minecraft.client.Minecraft;
@@ -11,7 +13,9 @@ import net.minecraft.world.item.ItemStack;
 import slimeknights.tconstruct.library.materials.MaterialRegistry;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
 import slimeknights.tconstruct.library.materials.definition.MaterialId;
+import slimeknights.tconstruct.library.modifiers.ModifierEntry;
 import slimeknights.tconstruct.library.modifiers.ModifierId;
+import slimeknights.tconstruct.library.recipe.modifiers.adding.IDisplayModifierRecipe;
 
 import javax.annotation.Nullable;
 import slimeknights.tconstruct.library.materials.stats.MaterialStatsId;
@@ -120,6 +124,88 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
         }
         IMaterial material = MaterialRegistry.getMaterial(materialId);
         return material == null || material == IMaterial.UNKNOWN ? null : material;
+    }
+
+    /**
+     * Loads an existing tool into this blueprint, so the player edits the tool they already made
+     * rather than a fresh one that merely shares its materials.
+     * <p>
+     * Import used to copy the material array and nothing else, which threw away every modifier on the
+     * tool: opening the planner on a fully upgraded pickaxe showed an unmodified one, and the modifier
+     * panel offered slots the real tool had already spent. All three parts of a tool's editable state
+     * are carried over here - materials, the modifiers the player applied, and any slots it holds
+     * beyond what a freshly built one would.
+     *
+     * @param tool the tool to read, normally the one in the station's input slot
+     */
+    public void importFrom(ToolStack tool) {
+        for (int i = 0; i < materials.length; i++) {
+            //getMaterial answers MaterialVariant.UNKNOWN past the end of the stack's material list;
+            //null leaves the slot empty instead of pinning a placeholder material onto it
+            IMaterial material = tool.getMaterial(i).get();
+            materials[i] = material == IMaterial.UNKNOWN ? null : material;
+        }
+        modStack = importModifiers(tool);
+        creativeSlots.clear();
+        if (isComplete()) {
+            grantSlotSurplus(tool);
+        }
+    }
+
+    /**
+     * Rebuilds a modifier stack from the modifiers already on a tool.
+     * <p>
+     * Only {@code getUpgrades()} is read, never {@code getModifiers()}: the latter also contains the
+     * traits the materials themselves contribute, and {@link #buildBase()} derives those from the
+     * materials again, so importing them would double every trait.
+     * <p>
+     * A modifier that no recipe produces - added by a command, a loot function or an addon that is no
+     * longer present - cannot be represented as a stack entry and is dropped with a warning; the
+     * preview then differs from the real tool by exactly that modifier.
+     */
+    private static ModifierStack importModifiers(ToolStack tool) {
+        ModifierStack imported = new ModifierStack();
+        Map<ModifierId, IDisplayModifierRecipe> byModifier = PlannerScreen.getModifierRecipesByModifier();
+        for (ModifierEntry entry : tool.getUpgrades()) {
+            ModifierId id = entry.getModifier().getId();
+            IDisplayModifierRecipe recipe = byModifier.get(id);
+            if (recipe == null) {
+                TConPlanner.LOGGER.warn("No modifier recipe produces '{}'; it cannot be imported and the preview will not include it", id);
+                continue;
+            }
+            //One entry per level, which is the same stack clicking "+" that many times would build
+            ModifierInfo info = new ModifierInfo(recipe);
+            for (int level = 0; level < entry.getLevel(); level++) {
+                imported.push(info);
+            }
+        }
+        return imported;
+    }
+
+    /**
+     * Grants as creative slots whatever the real tool has left over that a replay cannot account for.
+     * <p>
+     * A normally crafted tool reconciles exactly - the definition's slots minus what its modifiers
+     * charged - and nothing is granted. A tool that was given extra slots, by a creative slot item or
+     * by an addon, would otherwise open with the modifier panel reporting those modifiers as
+     * unaffordable, because the blueprint only ever starts from the definition's own slot counts.
+     * <p>
+     * The reverse case - a replay that spends more than the real tool did, which is what a dropped or
+     * differently priced modifier looks like - is left alone rather than taking slots away, so the
+     * discrepancy stays visible in the panel instead of being papered over.
+     */
+    private void grantSlotSurplus(ToolStack tool) {
+        ToolStack replayed = buildBase();
+        List<ModifierStep> steps = replay(replayed, modStack, false);
+        if (!steps.isEmpty()) {
+            replayed = steps.get(steps.size() - 1).tool();
+        }
+        for (SlotType type : SlotType.getAllSlotTypes()) {
+            int surplus = tool.getPersistentData().getSlots(type) - replayed.getPersistentData().getSlots(type);
+            if (surplus > 0) {
+                addCreativeSlot(type, surplus);
+            }
+        }
     }
 
     /** One replayed modifier step: the tool it produced, and why the recipe refused it if it did */

@@ -30,6 +30,7 @@ import slimeknights.mantle.recipe.helper.RecipeHelper;
 import slimeknights.tconstruct.library.materials.MaterialRegistry;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
 import slimeknights.tconstruct.library.modifiers.ModifierEntry;
+import slimeknights.tconstruct.library.modifiers.ModifierId;
 import slimeknights.tconstruct.library.recipe.TinkerRecipeTypes;
 import slimeknights.tconstruct.library.recipe.modifiers.adding.IDisplayModifierRecipe;
 import slimeknights.tconstruct.library.recipe.tinkerstation.ITinkerStationRecipe;
@@ -126,12 +127,7 @@ public class PlannerScreen extends Screen {
 
     private void importInto(BaseBlueprint<?> imported, ToolStack stack) {
         blueprint = imported;
-        for (int i = 0; i < imported.materials.length; i++) {
-            //getMaterial answers MaterialVariant.UNKNOWN past the end of the stack's material list;
-            //null leaves the part empty instead of pinning a placeholder material onto it
-            IMaterial material = stack.getMaterial(i).get();
-            imported.materials[i] = material == IMaterial.UNKNOWN ? null : material;
-        }
+        imported.importFrom(stack);
         selectedPart = -1;
     }
 
@@ -508,6 +504,7 @@ public class PlannerScreen extends Screen {
     private static RecipeManager cachedRecipeManager;
     private static List<IDisplayModifierRecipe> cachedRecipes = Collections.emptyList();
     private static Map<ResourceLocation, IDisplayModifierRecipe> cachedRecipeIndex = Collections.emptyMap();
+    private static Map<ModifierId, IDisplayModifierRecipe> cachedRecipeByModifier = Collections.emptyMap();
 
     /**
      * Every modifier recipe that can be displayed, deduplicated by (modifier, slots, level).
@@ -543,16 +540,42 @@ public class PlannerScreen extends Screen {
                 }
             }
         }
+        Map<ModifierId, IDisplayModifierRecipe> byModifier = new HashMap<>();
+        for (IDisplayModifierRecipe recipe : cleanedList) {
+            byModifier.merge(recipe.getDisplayResult().getModifier().getId(), recipe,
+                    PlannerScreen::preferredRecipeFor);
+        }
+
         cachedRecipeManager = recipeManager;
         cachedRecipes = cleanedList;
         cachedRecipeIndex = index;
+        cachedRecipeByModifier = byModifier;
         return cachedRecipes;
+    }
+
+    /**
+     * Which of two recipes for the same modifier represents it.
+     * <p>
+     * The lowest display level wins, so importing an existing tool builds its stack out of one entry
+     * per level - exactly what clicking "+" that many times produces - rather than a single entry that
+     * jumps straight to level 3. Ties break on recipe id purely so the choice is stable across loads.
+     */
+    private static IDisplayModifierRecipe preferredRecipeFor(IDisplayModifierRecipe a, IDisplayModifierRecipe b) {
+        int levelDiff = a.getDisplayResult().getLevel() - b.getDisplayResult().getLevel();
+        if (levelDiff != 0) return levelDiff < 0 ? a : b;
+        return ((ITinkerStationRecipe) a).getId().compareTo(((ITinkerStationRecipe) b).getId()) <= 0 ? a : b;
     }
 
     /** Recipe-id lookup over the same deduplicated list, for deserialising a saved modifier stack */
     public static Map<ResourceLocation, IDisplayModifierRecipe> getModifierRecipeIndex() {
         getModifierRecipes();
         return cachedRecipeIndex;
+    }
+
+    /** Modifier lookup over the same deduplicated list, for importing an existing tool's modifiers */
+    public static Map<ModifierId, IDisplayModifierRecipe> getModifierRecipesByModifier() {
+        getModifierRecipes();
+        return cachedRecipeByModifier;
     }
 
     /**
@@ -563,5 +586,6 @@ public class PlannerScreen extends Screen {
         cachedRecipeManager = null;
         cachedRecipes = Collections.emptyList();
         cachedRecipeIndex = Collections.emptyMap();
+        cachedRecipeByModifier = Collections.emptyMap();
     }
 }

@@ -1,6 +1,6 @@
 {
   "gui.tconplanner.plannerbutton": "Open Planner",
-  "gui.tconplanner.importtool": "Import Tool Parts to Planner",
+  "gui.tconplanner.importtool": "Import Tool to Planner",
   "gui.tconplanner.name": "Tinker's Planner",
   "gui.tconplanner.notool": "Select Tool",
   "gui.tconplanner.banner.tools": "Tools",
