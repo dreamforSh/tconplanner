@@ -7,6 +7,9 @@ import net.minecraft.nbt.NbtIo;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,6 +26,15 @@ public class PlannerData {
     private final File bookmarkFile;
     private final File exportFolder;
     private boolean hasLoaded;
+    /** Set when a read failed outright; blocks save() so a bad read cannot erase the file */
+    private boolean loadFailed;
+    /**
+     * Raw NBT for entries that did not resolve this session - a bookmark for a tool from a mod that is
+     * currently absent, or one whose material has gone. They are written back verbatim, so temporarily
+     * removing a mod no longer deletes the bookmarks that referenced it.
+     */
+    private final List<CompoundTag> unresolved = new ArrayList<>();
+    private CompoundTag unresolvedStar;
 
     public PlannerData(File folder){
         bookmarkFile = new File(folder, "bookmark.dat");
@@ -51,6 +63,12 @@ public class PlannerData {
     }
 
     public void save() throws IOException {
+        if (loadFailed) {
+            //NbtIo.writeCompressed truncates. Without this guard, one unreadable file plus any later
+            //bookmark action would have written an empty list over the user's whole collection.
+            TConPlanner.LOGGER.warn("Not writing bookmark.dat: the last read failed, so the in-memory list may be incomplete");
+            return;
+        }
         ListTag nbt = new ListTag();
         List<CompoundTag> added = new ArrayList<>();
         for (BaseBlueprint<?> bp : saved) {
@@ -64,18 +82,41 @@ public class PlannerData {
                 TConPlanner.LOGGER.warn("Failed to save blueprint", e);
             }
         }
+        //Carry through anything this session could not interpret, so it survives for a session that can
+        for (CompoundTag stale : unresolved) {
+            if (!added.contains(stale)) {
+                nbt.add(stale);
+                added.add(stale);
+            }
+        }
         CompoundTag data = new CompoundTag();
         data.putInt(VERSION_KEY, DATA_VERSION);
         data.put(LIST_KEY, nbt);
         if(starred != null && starred.isComplete()){
             try {
-                CompoundTag cnbt = starred.toNBT();
-                data.put(STARRED_KEY, cnbt);
+                data.put(STARRED_KEY, starred.toNBT());
             } catch (Exception e) {
                 TConPlanner.LOGGER.warn("Failed to save starred blueprint", e);
             }
+        } else if (unresolvedStar != null) {
+            data.put(STARRED_KEY, unresolvedStar);
         }
-        NbtIo.writeCompressed(data, bookmarkFile);
+        writeAtomically(data);
+    }
+
+    /**
+     * Writes through a temp file and renames, so an exception or a crash part-way through leaves the
+     * previous bookmark.dat intact instead of a truncated one.
+     */
+    private void writeAtomically(CompoundTag data) throws IOException {
+        File temp = new File(bookmarkFile.getParentFile(), bookmarkFile.getName() + ".tmp");
+        NbtIo.writeCompressed(data, temp);
+        try {
+            Files.move(temp.toPath(), bookmarkFile.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(temp.toPath(), bookmarkFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 
     public void firstLoad() throws IOException {
@@ -84,40 +125,72 @@ public class PlannerData {
         }
     }
 
+    /**
+     * Parses into locals and only commits on success, so a failed read leaves whatever is already in
+     * memory alone rather than replacing it with nothing.
+     */
     public void load() throws IOException {
         hasLoaded = true;
-        saved.clear();
-        starred = null;
         if (!bookmarkFile.exists()) {
+            saved.clear();
+            starred = null;
+            unresolved.clear();
+            unresolvedStar = null;
+            loadFailed = false;
             return;
         }
+
+        List<BaseBlueprint<?>> loaded = new ArrayList<>();
+        List<CompoundTag> stale = new ArrayList<>();
+        BaseBlueprint<?> loadedStar = null;
+        CompoundTag staleStar = null;
         try {
             CompoundTag data = NbtIo.readCompressed(bookmarkFile);
-            int version = data.getInt(VERSION_KEY);
-            
+
             ListTag nbt = data.getList(LIST_KEY, 10);
             for (int i = 0; i < nbt.size(); i++) {
                 CompoundTag tag = nbt.getCompound(i);
+                BaseBlueprint<?> bp = null;
                 try {
-                    BaseBlueprint<?> bp = deserializeBlueprint(tag);
-                    if (bp != null && bp.isComplete()) {
-                        saved.add(bp);
-                    }
+                    bp = deserializeBlueprint(tag);
                 } catch (Exception e) {
                     TConPlanner.LOGGER.warn("Failed to load blueprint at index {}", i, e);
                 }
+                if (bp != null && bp.isComplete()) {
+                    loaded.add(bp);
+                } else {
+                    //Unreadable right now, but not necessarily junk - hold the raw tag for save()
+                    stale.add(tag);
+                }
             }
-            
+
             if (data.contains(STARRED_KEY)) {
                 CompoundTag starredTag = data.getCompound(STARRED_KEY);
                 try {
-                    starred = deserializeBlueprint(starredTag);
+                    loadedStar = deserializeBlueprint(starredTag);
                 } catch (Exception e) {
                     TConPlanner.LOGGER.warn("Failed to load starred blueprint", e);
                 }
+                if (loadedStar == null || !loadedStar.isComplete()) {
+                    loadedStar = null;
+                    staleStar = starredTag;
+                }
             }
         } catch (Exception e) {
-            TConPlanner.LOGGER.error("Failed to load planner data", e);
+            TConPlanner.LOGGER.error("Failed to read bookmark.dat; keeping the current bookmarks and blocking writes", e);
+            loadFailed = true;
+            return;
+        }
+
+        saved.clear();
+        saved.addAll(loaded);
+        starred = loadedStar;
+        unresolved.clear();
+        unresolved.addAll(stale);
+        unresolvedStar = staleStar;
+        loadFailed = false;
+        if (!stale.isEmpty()) {
+            TConPlanner.LOGGER.info("{} bookmark(s) could not be resolved in this world and will be preserved as-is", stale.size());
         }
     }
 
@@ -152,5 +225,7 @@ public class PlannerData {
     public void clearAll() {
         saved.clear();
         starred = null;
+        unresolved.clear();
+        unresolvedStar = null;
     }
 }

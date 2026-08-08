@@ -49,6 +49,11 @@ public class MaterialSelectPanel extends PlannerPanel{
             parent.refreshMaterialList();
         });
         addChild(this.searchBox);
+        //The box is rebuilt on every keystroke, so focus has to be carried across explicitly
+        if (parent.materialSearchFocused) {
+            this.searchBox.setFocused(true);
+            this.searchBox.moveCursorToEnd();
+        }
 
 
         BaseBlueprint<?> blueprint = parent.blueprint;
@@ -121,9 +126,28 @@ public class MaterialSelectPanel extends PlannerPanel{
         //如果点击了搜索框，就把焦点给它，并返回true
         if (searchBox.mouseClicked(mouseX, mouseY, button)) {
             searchBox.setFocused(true);
+            parent.materialSearchFocused = true;
             return true;
         }
+        //Clicking anywhere else gives the keyboard back, so the two search boxes cannot both hold it
+        if (searchBox.isFocused()) {
+            searchBox.setFocused(false);
+            parent.materialSearchFocused = false;
+        }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    /**
+     * When the screen hands focus to another panel it calls this with false; without cascading that to
+     * the search box, both search boxes would draw a caret and both would claim the keyboard.
+     */
+    @Override
+    public void setFocused(boolean focused) {
+        super.setFocused(focused);
+        if (!focused) {
+            searchBox.setFocused(false);
+            parent.materialSearchFocused = false;
+        }
     }
 
     @Override

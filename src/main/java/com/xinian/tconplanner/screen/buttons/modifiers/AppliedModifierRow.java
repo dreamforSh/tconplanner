@@ -36,6 +36,7 @@ public class AppliedModifierRow extends AbstractWidget {
     private static final int UP_FROM_RIGHT = 36;
     private static final int DOWN_FROM_RIGHT = 24;
     private static final int REMOVE_FROM_RIGHT = 12;
+    private static final int ARROW_WIDTH = 7;
 
     private final PlannerScreen parent;
     private final ModifierInfo info;
@@ -87,9 +88,11 @@ public class AppliedModifierRow extends AbstractWidget {
             ModifierTheme.smallString(graphics, font, ModifierRow.slotCost(info.count), x + TEXT_X + 4, y + 10, ModifierTheme.TEXT_FAINT);
         }
 
-        ModifierTheme.triangle(graphics, x + width - UP_FROM_RIGHT + 2, y + 5, 7, 5, true,
+        //Both arrows share one derived height, so they sit on the same baseline
+        int arrowY = y + (HEIGHT - ModifierTheme.triangleHeight(ARROW_WIDTH)) / 2;
+        ModifierTheme.triangle(graphics, x + width - UP_FROM_RIGHT + 2, arrowY, ARROW_WIDTH, true,
                 glyph(index > 0, inBox(mouseX, mouseY, width - UP_FROM_RIGHT)));
-        ModifierTheme.triangle(graphics, x + width - DOWN_FROM_RIGHT + 2, y + 5, 7, 5, false,
+        ModifierTheme.triangle(graphics, x + width - DOWN_FROM_RIGHT + 2, arrowY, ARROW_WIDTH, false,
                 glyph(index < lastIndex, inBox(mouseX, mouseY, width - DOWN_FROM_RIGHT)));
         ModifierTheme.cross(graphics, x + width - REMOVE_FROM_RIGHT + 3, y + 5, 6,
                 inBox(mouseX, mouseY, width - REMOVE_FROM_RIGHT) ? ModifierTheme.TEXT_ERROR : ModifierTheme.GLYPH);

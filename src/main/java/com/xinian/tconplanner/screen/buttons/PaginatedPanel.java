@@ -35,6 +35,22 @@ public class PaginatedPanel<T extends AbstractWidget> extends PlannerPanel {
     }
 
 
+    /**
+     * Where the current page is stored in the screen cache.
+     * <p>
+     * Exposed because callers that want to scroll a list back to the top have to write the same key, and
+     * spelling it out at the call site is how the modifier search box ended up resetting a key nothing
+     * read - so the list never returned to the top on a new query.
+     */
+    public static String pageCacheKey(String cachePrefix){
+        return cachePrefix + ".page";
+    }
+
+    /** Scrolls the list identified by {@code cachePrefix} back to the top on its next build */
+    public static void resetPage(PlannerScreen parent, String cachePrefix){
+        parent.setCacheValue(pageCacheKey(cachePrefix), 0);
+    }
+
     public void addChild(AbstractWidget widget){
         allChildren.add((T)widget);
     }
@@ -42,7 +58,7 @@ public class PaginatedPanel<T extends AbstractWidget> extends PlannerPanel {
     public void sort(Comparator<T> comparator){allChildren.sort(comparator);}
 
     public void refresh(){
-        refresh(parent.getCacheValue(cachePrefix + ".page", 0));
+        refresh(parent.getCacheValue(pageCacheKey(cachePrefix), 0));
     }
 
     public void refresh(int page){
@@ -63,20 +79,20 @@ public class PaginatedPanel<T extends AbstractWidget> extends PlannerPanel {
     }
 
     private void setPage(int page){
-        parent.setCacheValue(cachePrefix + ".page", page);
+        parent.setCacheValue(pageCacheKey(cachePrefix), page);
         refresh(page);
     }
 
     public void makeVisible(int index, boolean refresh){
         if(index >= 0 && index < allChildren.size()){
             int row = index/columns;
-            int page = parent.getCacheValue(cachePrefix + ".page", 0);
+            int page = parent.getCacheValue(pageCacheKey(cachePrefix), 0);
             if(page > row){
-                parent.setCacheValue(cachePrefix + ".page", row);
+                parent.setCacheValue(pageCacheKey(cachePrefix), row);
                 if(refresh)refresh(row);
             }
             else if(page + rows - 1 < row){
-                parent.setCacheValue(cachePrefix + ".page", Math.max(0, row - rows + 1));
+                parent.setCacheValue(pageCacheKey(cachePrefix), Math.max(0, row - rows + 1));
                 if(refresh)refresh(row);
             }
         }
@@ -87,7 +103,7 @@ public class PaginatedPanel<T extends AbstractWidget> extends PlannerPanel {
         super.render(graphics, mouseX, mouseY, p_230430_4_);
         if(totalPages > 1) {
             int scrollX = x + width - 3;
-            int page = parent.getCacheValue(cachePrefix + ".page", 0);
+            int page = parent.getCacheValue(pageCacheKey(cachePrefix), 0);
             graphics.fill(scrollX, y, scrollX + 3, y + height, 0x0f_ffffff + (isHovered ? 0x0a_000000 : 0));
             graphics.fill(scrollX, y + (int)(scrollPageHeight*page), scrollX + 3, y + (int)(scrollPageHeight*(page+rows)), 0x0f_ffffff + (isHovered || isDragging ? 0x0f_000000 : 0));
         }
@@ -124,7 +140,7 @@ public class PaginatedPanel<T extends AbstractWidget> extends PlannerPanel {
     public boolean mouseScrolled(double mouseX, double mouseY, double scroll) {
         boolean result = false;
         double scrollAmount = scroll * Config.CONFIG.scrollDirection.get().mult;
-        int currentPage = parent.getCacheValue(cachePrefix + ".page", 0);
+        int currentPage = parent.getCacheValue(pageCacheKey(cachePrefix), 0);
         if(scrollAmount > 0 && currentPage < totalPages - 1){
             setPage(currentPage + 1);
             result = true;

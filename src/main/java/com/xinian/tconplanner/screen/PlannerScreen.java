@@ -6,6 +6,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
@@ -74,6 +75,8 @@ public class PlannerScreen extends Screen {
     public String modifierSearch = "";
     public int modifierTab = ModifierPanel.TAB_ALL;
     public boolean modifierSearchFocused = false;
+    /** Outlives the panel rebuilds so the caret and selection are not reset on every keystroke */
+    public EditBox modifierSearchBox;
 
     public int left, top, guiWidth, guiHeight;
     /** Shrinks on narrow screens so the panel never costs more room than the old fixed 115 */
@@ -82,6 +85,7 @@ public class PlannerScreen extends Screen {
 
     //
     public String materialSearch = "";
+    public boolean materialSearchFocused = false;
 
     public PlannerScreen(TinkerStationScreen child) {
         super(TranslationUtil.createComponent("name"));
@@ -110,14 +114,20 @@ public class PlannerScreen extends Screen {
         }
     }
 
+    /** Width the tool/bookmark column occupies to the left of the main window, including its gap */
+    private static final int LEFT_COLUMN = 104;
+
     @Override
     public void init() {
         guiWidth = 175;
         guiHeight = 204;
-        left = width / 2 - guiWidth / 2;
-        top = height / 2 - guiHeight / 2;
-        //Take what the screen actually has left of the main window, capped at the design width
-        modPanelWidth = Mth.clamp(width - (left + guiWidth), ModifierPanel.NARROW_WIDTH, ModifierPanel.WIDTH);
+        //Centre the whole cluster - left column, main window, modifier panel - instead of centring the
+        //main window alone. Centring the window meant the side panels were positioned by unclamped
+        //arithmetic and simply fell off whichever edge ran out of room first.
+        modPanelWidth = Mth.clamp(width - LEFT_COLUMN - guiWidth - 8, ModifierPanel.NARROW_WIDTH, ModifierPanel.WIDTH);
+        int cluster = LEFT_COLUMN + guiWidth + modPanelWidth;
+        left = Math.max(LEFT_COLUMN, (width - cluster) / 2 + LEFT_COLUMN);
+        top = Math.max(0, height / 2 - guiHeight / 2);
         refresh();
     }
 
@@ -128,7 +138,7 @@ public class PlannerScreen extends Screen {
         setFocused(null);
         int toolSpace = 20;
         int panelWidth = 100;
-        int panelX = left - panelWidth - 4;
+        int panelX = left - LEFT_COLUMN;
 
         // Mode switch buttons
         addRenderableWidget(new TextButton(panelX, top, TranslationUtil.createComponent("mode.tools"), () -> {
@@ -155,7 +165,8 @@ public class PlannerScreen extends Screen {
 
 
         if (!data.saved.isEmpty()) {
-            addRenderableWidget(new BookmarkSelectPanel(panelX, top + 22 + toolSpace * 3 + 23 + 4 + 4, panelWidth, toolSpace * 5 + 23 + 4, data, this));
+            addRenderableWidget(new BookmarkSelectPanel(panelX, top + 22 + toolSpace * 3 + 23 + 4 + 4, panelWidth,
+                    BookmarkSelectPanel.HEIGHT, data, this));
         }
 
         if (blueprint != null) {
@@ -177,7 +188,6 @@ public class PlannerScreen extends Screen {
 
     /**
      * Swaps only the modifier panel, so the search box keeps its text, caret and focus while typing.
-     * The material search box already works this way via {@link #refreshMaterialList()}.
      */
     public void refreshModifierPanel() {
         List<GuiEventListener> toRemove = new ArrayList<>();
@@ -197,6 +207,7 @@ public class PlannerScreen extends Screen {
         if (modifierSearchFocused) setFocused(panel);
     }
 
+    /** The material-panel counterpart of {@link #refreshModifierPanel()} */
     public void refreshMaterialList() {
 
         List<GuiEventListener> toRemove = new ArrayList<>();
@@ -208,7 +219,10 @@ public class PlannerScreen extends Screen {
         }
 
         if (selectedPart != -1) {
-            addRenderableWidget(new MaterialSelectPanel(left, top + 115, guiWidth, guiHeight - 115, this));
+            MaterialSelectPanel panel = new MaterialSelectPanel(left, top + 115, guiWidth, guiHeight - 115, this);
+            addRenderableWidget(panel);
+            //removeWidget leaves Screen.focused dangling on the detached panel; key events need the new one
+            if (materialSearchFocused) setFocused(panel);
         }
     }
 
@@ -472,5 +486,15 @@ public class PlannerScreen extends Screen {
     public static Map<ResourceLocation, IDisplayModifierRecipe> getModifierRecipeIndex() {
         getModifierRecipes();
         return cachedRecipeIndex;
+    }
+
+    /**
+     * Drops the memoised recipe list. These are static, so without this the client would hold a
+     * departed world's RecipeManager and every recipe object in it until the next world was joined.
+     */
+    public static void clearRecipeCache() {
+        cachedRecipeManager = null;
+        cachedRecipes = Collections.emptyList();
+        cachedRecipeIndex = Collections.emptyMap();
     }
 }

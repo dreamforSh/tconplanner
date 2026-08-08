@@ -9,7 +9,6 @@ import com.xinian.tconplanner.screen.buttons.modifiers.ModifierButton;
 import com.xinian.tconplanner.screen.buttons.modifiers.ModifierRow;
 import com.xinian.tconplanner.screen.buttons.modifiers.ModifierTheme;
 import com.xinian.tconplanner.screen.buttons.modifiers.SlotBarWidget;
-import com.xinian.tconplanner.util.DummyTinkersStationInventory;
 import com.xinian.tconplanner.util.JECharactersIntegration;
 import com.xinian.tconplanner.util.ModifierEvaluator;
 import com.xinian.tconplanner.util.ModifierStateEnum;
@@ -18,14 +17,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import slimeknights.tconstruct.library.modifiers.Modifier;
 import slimeknights.tconstruct.library.modifiers.ModifierId;
-import slimeknights.tconstruct.library.recipe.RecipeResult;
 import slimeknights.tconstruct.library.recipe.modifiers.adding.IDisplayModifierRecipe;
-import slimeknights.tconstruct.library.recipe.tinkerstation.ITinkerStationRecipe;
 import slimeknights.tconstruct.library.tools.nbt.ToolStack;
 
 import javax.annotation.Nullable;
@@ -84,21 +81,12 @@ public class ModifierPanel extends PlannerPanel {
         addChild(new BannerWidget((width - 90) / 2, 0, TranslationUtil.createComponent("banner.modifiers"), parent));
         addChild(new SlotBarWidget(MARGIN, SLOT_BAR_Y, contentWidth, tool, parent));
 
-        searchBox = new EditBox(Minecraft.getInstance().font, MARGIN, SEARCH_Y, contentWidth, SEARCH_HEIGHT,
-                TranslationUtil.createComponent("modifiers.search"));
-        searchBox.setMaxLength(50);
-        searchBox.setValue(parent.modifierSearch);
-        searchBox.setResponder(text -> {
-            parent.modifierSearch = text;
-            parent.setCacheValue(pageKey(parent.modifierTab), 0);
-            //Swap only this panel so the box keeps focus while typing
-            parent.refreshModifierPanel();
-        });
+        searchBox = obtainSearchBox(parent, contentWidth);
+        //addChild rebases coordinates, so a re-mounted widget must have them re-set, never accumulated
+        searchBox.x = MARGIN;
+        searchBox.y = SEARCH_Y;
+        searchBox.width = contentWidth;
         addChild(searchBox);
-        if (parent.modifierSearchFocused) {
-            searchBox.setFocused(true);
-            searchBox.moveCursorToEnd();
-        }
 
         addTabs(blueprint, contentWidth);
 
@@ -107,6 +95,34 @@ public class ModifierPanel extends PlannerPanel {
         } else {
             buildBrowseList(blueprint, tool, result, modifiers, rowWidth);
         }
+    }
+
+    /**
+     * A single EditBox lives on the screen and is re-mounted on each build, so its text, caret,
+     * selection and focus survive the panel rebuild that every keystroke triggers. Building a fresh box
+     * per rebuild dropped the caret to the end of the line after every character.
+     */
+    private static EditBox obtainSearchBox(PlannerScreen parent, int width) {
+        EditBox box = parent.modifierSearchBox;
+        if (box == null) {
+            box = new EditBox(Minecraft.getInstance().font, 0, 0, width, SEARCH_HEIGHT,
+                    TranslationUtil.createComponent("modifiers.search"));
+            box.setMaxLength(50);
+            box.setValue(parent.modifierSearch);
+            box.setResponder(text -> {
+                //Also stops the setValue below from re-entering
+                if (text.equals(parent.modifierSearch)) return;
+                parent.modifierSearch = text;
+                PaginatedPanel.resetPage(parent, pageKey(parent.modifierTab));
+                //Swap only this panel so the box keeps focus while typing
+                parent.refreshModifierPanel();
+            });
+            parent.modifierSearchBox = box;
+        } else if (!box.getValue().equals(parent.modifierSearch)) {
+            //setBlueprint clears the query; push that into the surviving widget
+            box.setValue(parent.modifierSearch);
+        }
+        return box;
     }
 
     private void addTabs(BaseBlueprint<?> blueprint, int contentWidth) {
@@ -136,7 +152,7 @@ public class ModifierPanel extends PlannerPanel {
         boolean availableOnly = parent.modifierTab == TAB_AVAILABLE;
         int shown = 0;
         for (ModifierEvaluator.Candidate candidate : parent.modifierEvaluator.candidatesFor(blueprint.toolDefinition, modifiers)) {
-            if (!matches(candidate, search)) continue;
+            if (!matches(candidate.searchKey(), candidate.displayName(), search)) continue;
             ModifierRow row = new ModifierRow(candidate, rowWidth, tool, result, parent);
             //Only this branch pays for a full validation sweep; results are cached for later refreshes
             if (availableOnly && row.getState() == ModifierStateEnum.UNAVAILABLE) continue;
@@ -165,35 +181,39 @@ public class ModifierPanel extends PlannerPanel {
             list.refresh();
             return;
         }
+        String search = parent.modifierSearch.toLowerCase(Locale.ROOT).trim();
+        int shown = 0;
 
-        ToolStack walk = ToolStack.from(blueprint.createOutput(false));
+        //Shared with createOutput and validateWith, so the per-step snapshots, the failing-step marker
+        //and the tool the rest of the planner shows can never disagree about slot costs
+        List<BaseBlueprint.ModifierStep> steps = blueprint.replayModifiers(blueprint.modStack);
         Map<ModifierId, Integer> levels = new HashMap<>();
-        RegistryAccess access = Minecraft.getInstance().level == null ? null : Minecraft.getInstance().level.registryAccess();
-        boolean alreadyFailed = false;
+        boolean alreadyMarked = false;
 
-        for (int i = 0; i < stack.size(); i++) {
-            ModifierInfo info = stack.get(i);
+        for (int i = 0; i < steps.size(); i++) {
+            BaseBlueprint.ModifierStep step = steps.get(i);
+            ModifierInfo info = step.info();
             int level = levels.merge(info.modifier.getId(), 1, Integer::sum);
 
+            //Only the first failure is the cause; the ones after it are consequences
             Component error = null;
-            if (!alreadyFailed && access != null) {
-                RecipeResult<?> step = ((ITinkerStationRecipe) info.recipe)
-                        .getValidatedResult(new DummyTinkersStationInventory(walk.createStack()), access);
-                if (step.hasError()) {
-                    error = step.getMessage();
-                    alreadyFailed = true;
-                }
+            if (!alreadyMarked && step.error() != null) {
+                error = step.error();
+                alreadyMarked = true;
             }
 
-            walk.addModifier(info.modifier.getId(), 1);
-            if (info.count != null) {
-                walk.getPersistentData().addSlots(info.count.type(), -info.count.count());
+            //Every step is replayed even while filtering, so snapshots stay correct. Only the row is
+            //skipped, and its index stays the real stack index so reordering acts on the right entry.
+            if (matches(info.modifier, search)) {
+                list.addChild(new AppliedModifierRow(info, i, steps.size() - 1, level, rowWidth,
+                        step.tool().createStack(), error, parent));
+                shown++;
             }
-            walk.rebuildStats();
-            list.addChild(new AppliedModifierRow(info, i, stack.size() - 1, level, rowWidth,
-                    walk.copy().createStack(), error, parent));
         }
         list.refresh();
+        if (shown == 0) {
+            emptyMessage = TranslationUtil.createComponent("modifiers.empty.search");
+        }
 
         addChild(new ModifierButton(MARGIN + rowWidth / 2 - 29, RESET_Y, 58, RESET_HEIGHT,
                 TranslationUtil.createComponent("modifiers.reset"), () -> {
@@ -202,10 +222,16 @@ public class ModifierPanel extends PlannerPanel {
         }, parent).dangerous().withTooltip(TranslationUtil.createComponent("modifiers.reset.tooltip", stack.size())));
     }
 
-    private static boolean matches(ModifierEvaluator.Candidate candidate, String search) {
+    private static boolean matches(String searchKey, Component displayName, String search) {
         if (search.isEmpty()) return true;
-        if (candidate.searchKey().contains(search)) return true;
-        return JECharactersIntegration.isLoaded() && JECharactersIntegration.matches(candidate.displayName().getString(), search);
+        if (searchKey.contains(search)) return true;
+        return JECharactersIntegration.isLoaded() && JECharactersIntegration.matches(displayName.getString(), search);
+    }
+
+    private static boolean matches(Modifier modifier, String search) {
+        if (search.isEmpty()) return true;
+        Component name = modifier.getDisplayName();
+        return matches((name.getString() + '\n' + modifier.getId()).toLowerCase(Locale.ROOT), name, search);
     }
 
     private static String pageKey(int tab) {
@@ -234,6 +260,19 @@ public class ModifierPanel extends PlannerPanel {
             parent.modifierSearchFocused = false;
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    /**
+     * When the screen hands focus to another panel it calls this with false; without cascading that to
+     * the search box, both search boxes would draw a caret and both would claim the keyboard.
+     */
+    @Override
+    public void setFocused(boolean focused) {
+        super.setFocused(focused);
+        if (!focused) {
+            searchBox.setFocused(false);
+            parent.modifierSearchFocused = false;
+        }
     }
 
     @Override

@@ -9,18 +9,36 @@ import com.xinian.tconplanner.screen.buttons.PaginatedPanel;
 import com.xinian.tconplanner.screen.buttons.TextButton;
 import com.xinian.tconplanner.util.TranslationUtil;
 import com.xinian.tconplanner.data.BaseBlueprint;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
-import java.util.List;
-
 public class BookmarkSelectPanel extends PlannerPanel {
+
+    private static final int GRID_Y = 23;
+    private static final int CELL = 18;
+    private static final int GAP = 2;
+    private static final int GRID_COLUMNS = 5;
+    /**
+     * Four, not five. At five the grid ran to y=121 while the export/import row sat at y=112..130, so
+     * the buttons covered the whole bottom row of bookmarks - and because the old
+     * {@code PlannerPanel.mouseClicked} did not stop at the first consumer, one click fired the hidden
+     * bookmark (replacing the blueprint you were editing) and then the button.
+     */
+    private static final int GRID_ROWS = 4;
+    private static final int GRID_HEIGHT = (CELL + GAP) * GRID_ROWS - GAP;
+    private static final int BUTTON_HEIGHT = 18;
+    private static final int BUTTON_Y = GRID_Y + GRID_HEIGHT + 3;
+
+    /** Exported so PlannerScreen cannot size this panel out of step with its own layout again */
+    public static final int HEIGHT = BUTTON_Y + BUTTON_HEIGHT;
 
     public BookmarkSelectPanel(int x, int y, int width, int height, PlannerData data, PlannerScreen parent) {
         super(x, y, width, height, parent);
         addChild(new BannerWidget(5, 0, TranslationUtil.createComponent("banner.bookmarked"), parent));
-        
-        PaginatedPanel<BookmarkedButton> bookmarkGroup = new PaginatedPanel<>(0, 23, 18, 18, 5, 5, 2, "bookmarkedgroup", parent);
+
+        PaginatedPanel<BookmarkedButton> bookmarkGroup = new PaginatedPanel<>(
+                0, GRID_Y, CELL, CELL, GRID_COLUMNS, GRID_ROWS, GAP, "bookmarkedgroup", parent);
         addChild(bookmarkGroup);
         for (int i = 0; i < data.saved.size(); i++) {
             BaseBlueprint<?> bookmarked = data.saved.get(i);
@@ -28,45 +46,44 @@ public class BookmarkSelectPanel extends PlannerPanel {
             bookmarkGroup.addChild(new BookmarkedButton(i, bookmarked, starred, parent));
         }
         bookmarkGroup.refresh();
-        
-        int buttonY = height - 15;
-        addChild(new TextButton(5, buttonY, TranslationUtil.createComponent("export.current"), () -> {
-            BaseBlueprint<?> blueprint = parent.blueprint;
-            if (blueprint != null && blueprint.isComplete()) {
-                String shortCode = BlueprintIO.exportToShortCode(blueprint);
-                if (shortCode != null) {
-                    Minecraft.getInstance().keyboardHandler.setClipboard(shortCode);
-                    if (Minecraft.getInstance().player != null) {
-                        Minecraft.getInstance().player.displayClientMessage(
-                            Component.literal(String.format(TranslationUtil.createComponent("export.success").getString(), shortCode)), 
-                            false
-                        );
-                    }
-                }
-            }
-        }, parent).withWidth(45));
-        
-        addChild(new TextButton(52, buttonY, TranslationUtil.createComponent("import"), () -> {
-            String clip = Minecraft.getInstance().keyboardHandler.getClipboard();
-            if (clip != null && !clip.isEmpty()) {
-                BaseBlueprint<?> imported = BlueprintIO.importFromCode(clip);
-                if (imported != null && imported.isComplete()) {
-                    if (data.addBlueprint(imported)) {
-                        try {
-                            data.refresh();
-                        } catch (Exception e) {
-                            TConPlanner.LOGGER.error("Failed to refresh data", e);
-                        }
-                        if (Minecraft.getInstance().player != null) {
-                            Minecraft.getInstance().player.displayClientMessage(
-                                TranslationUtil.createComponent("import.success").append("1"),
-                                false
-                            );
-                        }
-                        parent.refresh();
-                    }
-                }
-            }
-        }, parent).withWidth(45));
+
+        addChild(new TextButton(5, BUTTON_Y, TranslationUtil.createComponent("export.current"),
+                () -> exportCurrent(parent), parent).withWidth(45));
+        addChild(new TextButton(52, BUTTON_Y, TranslationUtil.createComponent("import"),
+                () -> importFromClipboard(data, parent), parent).withWidth(45));
+    }
+
+    private static void exportCurrent(PlannerScreen parent) {
+        BaseBlueprint<?> blueprint = parent.blueprint;
+        String shortCode = blueprint != null && blueprint.isComplete() ? BlueprintIO.exportToShortCode(blueprint) : null;
+        if (shortCode == null) {
+            //Every failure path here used to be an empty if, so a failed export looked identical to no click
+            tell(TranslationUtil.createComponent("export.fail").withStyle(ChatFormatting.RED));
+            return;
+        }
+        Minecraft.getInstance().keyboardHandler.setClipboard(shortCode);
+        tell(TranslationUtil.createComponent("export.success", shortCode));
+    }
+
+    private static void importFromClipboard(PlannerData data, PlannerScreen parent) {
+        String clip = Minecraft.getInstance().keyboardHandler.getClipboard();
+        BaseBlueprint<?> imported = clip == null || clip.isEmpty() ? null : BlueprintIO.importFromCode(clip);
+        if (imported == null || !imported.isComplete() || !data.addBlueprint(imported)) {
+            tell(TranslationUtil.createComponent("import.fail").withStyle(ChatFormatting.RED));
+            return;
+        }
+        try {
+            data.refresh();
+        } catch (Exception e) {
+            TConPlanner.LOGGER.error("Failed to refresh data", e);
+        }
+        tell(TranslationUtil.createComponent("import.success"));
+        parent.refresh();
+    }
+
+    private static void tell(Component message) {
+        if (Minecraft.getInstance().player != null) {
+            Minecraft.getInstance().player.displayClientMessage(message, false);
+        }
     }
 }

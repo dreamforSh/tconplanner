@@ -39,12 +39,24 @@ public class PlannerPanel extends AbstractWidget {
         // No narration needed for panels
     }
 
+    /**
+     * Children get first refusal; the panel only claims the click if the cursor is actually inside it.
+     * <p>
+     * This used to seed {@code result} with {@link #isHoveredOrFocused()} and OR every child's answer,
+     * which broke two ways. A panel stays focused after you click a text field in it, so it answered
+     * "handled" for clicks anywhere on the screen - and because {@code Screen} stops at the first child
+     * that returns true, whichever panel came earlier in the widget list swallowed every click meant for
+     * a later one (click the material search box, and the modifier panel went dead). Not stopping at the
+     * first consumer also let overlapping children both fire on a single click.
+     * <p>
+     * Children are asked before the bounds test on purpose: some are deliberately positioned outside
+     * their parent, such as {@code MaterialSelectPanel}'s search box.
+     */
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        boolean result = isHoveredOrFocused();
         for (AbstractWidget child : children) {
-            if(child.mouseClicked(mouseX, mouseY, button))result = true;
+            if(child.mouseClicked(mouseX, mouseY, button)) return true;
         }
-        return result;
+        return isMouseOver(mouseX, mouseY);
     }
 
     public boolean mouseReleased(double mouseX, double mouseY, int p_231048_5_) {

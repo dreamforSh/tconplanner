@@ -6,9 +6,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.registries.ForgeRegistries;
-import slimeknights.tconstruct.library.materials.MaterialRegistry;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
-import slimeknights.tconstruct.library.materials.definition.MaterialId;
 import slimeknights.tconstruct.library.tools.SlotType;
 
 import java.util.Objects;
@@ -57,11 +55,10 @@ public class Blueprint extends BaseBlueprint<TCTool> {
         Blueprint bp = new Blueprint(optional.get());
         ListTag materials = tag.getList("materials", 8);
         for (int i = 0; i < materials.size(); i++) {
-            String id = materials.getString(i);
-            if (id.isEmpty()) continue;
-            IMaterial material = MaterialRegistry.getMaterial(new MaterialId(id));
             if (i < bp.materials.length) {
-                bp.materials[i] = material;
+                //null when unresolvable, so isComplete() reports false instead of silently
+                //rewriting the blueprint with tconstruct:unknown
+                bp.materials[i] = resolveMaterial(materials.getString(i));
             }
         }
 

@@ -120,13 +120,25 @@ public final class ModifierTheme {
         graphics.fill(x + 1, y + mid, x + size - 1, y + mid + 1, color);
     }
 
-    /** Solid triangle; {@code up} flips it */
-    public static void triangle(GuiGraphics graphics, int x, int y, int width, int height, boolean up, int color){
-        for(int row = 0; row < height; row++){
-            int inset = up ? (height - 1 - row) : row;
-            int half = Math.max(0, width / 2 - inset);
-            if(half <= 0) continue;
-            graphics.fill(x + width / 2 - half, y + row, x + width / 2 + half, y + row + 1, color);
+    /** Rows a {@link #triangle} of this width occupies, so callers can centre it */
+    public static int triangleHeight(int width){
+        return (width + 1) / 2;
+    }
+
+    /**
+     * Solid 45-degree pixel triangle, {@code width} across and {@link #triangleHeight} rows tall;
+     * {@code up} puts the apex at the top.
+     * <p>
+     * The height is derived rather than passed because the previous signature took both and clipped any
+     * row whose half-width computed to zero - at 7x5 that silently dropped two rows from each arrow and
+     * left the up and down arrows sitting 2px apart.
+     */
+    public static void triangle(GuiGraphics graphics, int x, int y, int width, boolean up, int color){
+        int rows = triangleHeight(width);
+        int centre = x + width / 2;
+        for(int row = 0; row < rows; row++){
+            int half = up ? row : rows - 1 - row;
+            graphics.fill(centre - half, y + row, centre + half + 1, y + row + 1, color);
         }
     }
 

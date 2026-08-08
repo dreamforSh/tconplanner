@@ -16,6 +16,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -74,6 +75,22 @@ public class EventListener {
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Everything this class and the planner memoise is static, so leaving a world would otherwise keep
+     * that world's RecipeManager, every modifier recipe in it, and the station screen's widget graph
+     * reachable until the next world was joined.
+     */
+    @SubscribeEvent
+    public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut e) {
+        PlannerScreen.clearRecipeCache();
+        layout = null;
+        starredLayout = false;
+        starredButton = null;
+        buttonScreen = null;
+        forceNextUpdate = false;
+        postRenderQueue.clear();
     }
 
     @SubscribeEvent

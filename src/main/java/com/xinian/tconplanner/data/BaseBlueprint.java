@@ -3,12 +3,18 @@ package com.xinian.tconplanner.data;
 import com.xinian.tconplanner.api.IPlannable;
 import com.xinian.tconplanner.util.DummyTinkersStationInventory;
 import com.xinian.tconplanner.util.ModifierStack;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
+import slimeknights.tconstruct.library.materials.MaterialRegistry;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
+import slimeknights.tconstruct.library.materials.definition.MaterialId;
+
+import javax.annotation.Nullable;
 import slimeknights.tconstruct.library.materials.stats.MaterialStatsId;
 import slimeknights.tconstruct.library.recipe.RecipeResult;
-import slimeknights.tconstruct.library.recipe.modifiers.adding.IDisplayModifierRecipe;
 import slimeknights.tconstruct.library.recipe.tinkerstation.ITinkerStationRecipe;
 import slimeknights.tconstruct.library.tools.SlotType;
 import slimeknights.tconstruct.library.tools.definition.ToolDefinition;
@@ -16,6 +22,7 @@ import slimeknights.tconstruct.library.tools.definition.module.material.ToolMate
 import slimeknights.tconstruct.library.tools.definition.module.material.ToolPartsHook;
 import slimeknights.tconstruct.library.tools.helper.ToolBuildHandler;
 import slimeknights.tconstruct.library.tools.item.IModifiable;
+import slimeknights.tconstruct.library.tools.nbt.LazyToolStack;
 import slimeknights.tconstruct.library.tools.nbt.MaterialNBT;
 import slimeknights.tconstruct.library.tools.nbt.ToolStack;
 import slimeknights.tconstruct.library.tools.part.IToolPart;
@@ -46,6 +53,34 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
         this.materials = new IMaterial[requiredStats.length];
     }
 
+    /**
+     * Looks up a saved material id, following renames and refusing the placeholder.
+     * <p>
+     * {@code MaterialRegistry.getMaterial} answers {@link IMaterial#UNKNOWN} rather than null for an id
+     * it does not know, and {@link #isComplete()} only rejects nulls - so an unresolvable material used
+     * to sail through as a complete blueprint and get written back to disk as "tconstruct:unknown",
+     * permanently losing which material it had been. It also never consulted the redirect table, so the
+     * five materials Tinkers ships as redirect-only definitions (bloodbone, chain, platinum,
+     * rotten_flesh, tungsten) failed on a stock install.
+     *
+     * @return the material, or null if the id cannot be resolved - which makes the blueprint incomplete
+     */
+    @Nullable
+    public static IMaterial resolveMaterial(String id) {
+        if (id == null || id.isEmpty()) return null;
+        MaterialId materialId = new MaterialId(id);
+        try {
+            materialId = MaterialRegistry.getInstance().resolve(materialId);
+        } catch (RuntimeException e) {
+            //Registry not ready; fall through to the plain lookup rather than losing the blueprint
+        }
+        IMaterial material = MaterialRegistry.getMaterial(materialId);
+        return material == null || material == IMaterial.UNKNOWN ? null : material;
+    }
+
+    /** One replayed modifier step: the tool it produced, and why the recipe refused it if it did */
+    public record ModifierStep(ModifierInfo info, ToolStack tool, @Nullable Component error) {}
+
     public ItemStack createOutput() {
         return createOutput(true);
     }
@@ -53,22 +88,78 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
     public ItemStack createOutput(boolean applyMods) {
         if (!isComplete()) return ItemStack.EMPTY;
 
-        MaterialNBT materialNBT = MaterialNBT.of(materials);
-        ItemStack built = ToolBuildHandler.buildItemFromMaterials(toolItem, materialNBT);
-        ToolStack stack = ToolStack.from(built);
-
-        creativeSlots.forEach((slotType, amount) -> stack.getPersistentData().addSlots(slotType, amount));
-
-        if (applyMods) {
-            for (ModifierInfo info : modStack.getStack()) {
-                stack.addModifier(info.modifier.getId(), 1);
-                if (info.count != null) {
-                    stack.getPersistentData().addSlots(info.count.type(), -info.count.count());
-                }
-            }
+        ToolStack stack = buildBase();
+        if (applyMods && !modStack.isEmpty()) {
+            List<ModifierStep> steps = replay(stack, modStack);
+            stack = steps.get(steps.size() - 1).tool();
         }
         stack.rebuildStats();
         return stack.createStack();
+    }
+
+    /**
+     * The tool with its parts and creative slots but no modifiers applied.
+     * <p>
+     * Stats are built before it is handed to any recipe, because a recipe's prerequisite checks read
+     * the modifier list that {@code rebuildStats} populates from the material traits.
+     */
+    private ToolStack buildBase() {
+        ToolStack stack = ToolStack.from(ToolBuildHandler.buildItemFromMaterials(toolItem, MaterialNBT.of(materials)));
+        creativeSlots.forEach((slotType, amount) -> stack.getPersistentData().addSlots(slotType, amount));
+        stack.rebuildStats();
+        return stack;
+    }
+
+    /** Replays {@code order} against this blueprint's parts, one step per applied modifier level */
+    public List<ModifierStep> replayModifiers(ModifierStack order) {
+        if (!isComplete()) return List.of();
+        return replay(buildBase(), order);
+    }
+
+    /**
+     * Applies each modifier by asking its recipe for the resulting tool, instead of adding the modifier
+     * and subtracting a cached slot cost by hand.
+     * <p>
+     * {@link ModifierInfo} caches {@code recipe.getSlots()} once, but for a multi-level recipe that is
+     * only ever <em>level one's</em> cost - {@code MultilevelModifierRecipe} passes {@code levels.get(0)}
+     * to its superclass while charging {@code LevelEntry.find(levels, newLevel).slots()} at craft time.
+     * So {@code returning} (level 1 = one ability slot, levels 2-4 = one upgrade slot each) and the two
+     * {@code leaping} recipes were billed the wrong amount, of the wrong type, for every level past the
+     * first. Taking the recipe's own result also keeps incremental and third-party recipe types correct.
+     * <p>
+     * A step the recipe refuses is still force-applied, so the preview keeps showing what the player
+     * built rather than collapsing; the error rides along so the UI can mark the exact failing step.
+     */
+    private static List<ModifierStep> replay(ToolStack base, ModifierStack order) {
+        List<ModifierStep> steps = new ArrayList<>();
+        Minecraft minecraft = Minecraft.getInstance();
+        RegistryAccess access = minecraft.level == null ? null : minecraft.level.registryAccess();
+        ToolStack stack = base;
+
+        for (ModifierInfo info : order.getStack()) {
+            Component error = null;
+            ToolStack next = null;
+            if (access != null) {
+                RecipeResult<LazyToolStack> result = ((ITinkerStationRecipe) info.recipe)
+                        .getValidatedResult(new DummyTinkersStationInventory(stack.createStack()), access);
+                if (result.hasError()) {
+                    error = result.getMessage();
+                } else if (result.isSuccess()) {
+                    next = result.getResult().getTool();
+                }
+            }
+            if (next == null) {
+                next = stack.copy();
+                next.addModifier(info.modifier.getId(), 1);
+                if (info.count != null) {
+                    next.getPersistentData().addSlots(info.count.type(), -info.count.count());
+                }
+            }
+            next.rebuildStats();
+            steps.add(new ModifierStep(info, next, error));
+            stack = next;
+        }
+        return steps;
     }
 
     /**
@@ -109,27 +200,16 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
     }
 
     /** Replays an arbitrary modifier order against this blueprint's parts, in application order */
-    @SuppressWarnings("unchecked")
     public RecipeResult<ItemStack> validateWith(ModifierStack order) {
-        ToolStack ts = ToolStack.from(createOutput(false));
-        RecipeResult<ItemStack> result = null;
-
-        for (ModifierInfo info : order.getStack()) {
-            IDisplayModifierRecipe recipe = info.recipe;
-            RecipeResult<?> rs = ((ITinkerStationRecipe) recipe).getValidatedResult(new DummyTinkersStationInventory(ts.createStack()), net.minecraft.client.Minecraft.getInstance().level.registryAccess());
-            if (rs.hasError()) {
-                result = (RecipeResult<ItemStack>) rs;
-                break;
-            } else {
-                ts.addModifier(info.modifier.getId(), 1);
-                SlotType type = recipe.getSlotType();
-                SlotType.SlotCount count = recipe.getSlots();
-                if (type != null && count != null) {
-                    ts.getPersistentData().addSlots(type, -count.count());
-                }
-            }
+        if (!isComplete()) return RecipeResult.pass();
+        ToolStack stack = buildBase();
+        List<ModifierStep> steps = replay(stack, order);
+        for (ModifierStep step : steps) {
+            if (step.error() != null) return RecipeResult.failure(step.error());
         }
-        return result != null ? result : RecipeResult.success(ts.createStack());
+        if (!steps.isEmpty()) stack = steps.get(steps.size() - 1).tool();
+        stack.rebuildStats();
+        return RecipeResult.success(stack.createStack());
     }
 
     public abstract CompoundTag toNBT();

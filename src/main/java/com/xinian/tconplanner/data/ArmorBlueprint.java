@@ -6,9 +6,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.registries.ForgeRegistries;
-import slimeknights.tconstruct.library.materials.MaterialRegistry;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
-import slimeknights.tconstruct.library.materials.definition.MaterialId;
 import slimeknights.tconstruct.library.tools.SlotType;
 
 import java.util.Objects;
@@ -59,11 +57,9 @@ public class ArmorBlueprint extends BaseBlueprint<TCArmor> {
         ArmorBlueprint bp = new ArmorBlueprint(optional.get());
         ListTag materials = tag.getList("materials", 8);
         for (int i = 0; i < materials.size(); i++) {
-            String id = materials.getString(i);
-            if (id.isEmpty()) continue;
-            IMaterial material = MaterialRegistry.getMaterial(new MaterialId(id));
             if (i < bp.materials.length) {
-                bp.materials[i] = material;
+                //See BaseBlueprint.resolveMaterial - an unknown id must yield null, not IMaterial.UNKNOWN
+                bp.materials[i] = resolveMaterial(materials.getString(i));
             }
         }
 
