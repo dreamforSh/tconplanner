@@ -1,6 +1,10 @@
 package com.xinian.tconplanner.data;
 
 import com.xinian.tconplanner.TConPlanner;
+import com.xinian.tconplanner.util.TranslationUtil;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtIo;
@@ -28,6 +32,7 @@ public class PlannerData {
     private boolean hasLoaded;
     /** Set when a read failed outright; blocks save() so a bad read cannot erase the file */
     private boolean loadFailed;
+    private boolean warnedReadOnly;
     /**
      * Raw NBT for entries that did not resolve this session - a bookmark for a tool from a mod that is
      * currently absent, or one whose material has gone. They are written back verbatim, so temporarily
@@ -66,7 +71,9 @@ public class PlannerData {
         if (loadFailed) {
             //NbtIo.writeCompressed truncates. Without this guard, one unreadable file plus any later
             //bookmark action would have written an empty list over the user's whole collection.
-            TConPlanner.LOGGER.warn("Not writing bookmark.dat: the last read failed, so the in-memory list may be incomplete");
+            //A transient failure clears itself, because load() runs again on every planner open.
+            TConPlanner.LOGGER.warn("Not writing {}: the last read of it failed, so the in-memory list may be incomplete", bookmarkFile);
+            warnReadOnlyOnce();
             return;
         }
         ListTag nbt = new ListTag();
@@ -102,6 +109,21 @@ public class PlannerData {
             data.put(STARRED_KEY, unresolvedStar);
         }
         writeAtomically(data);
+    }
+
+    /**
+     * Refusing to save is the safe answer to an unreadable file, but doing it silently just looks like
+     * bookmarking is broken. Say it once, with the path, so the player can move the file aside.
+     */
+    private void warnReadOnlyOnce() {
+        if (warnedReadOnly) return;
+        warnedReadOnly = true;
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player != null) {
+            player.displayClientMessage(
+                    TranslationUtil.createComponent("bookmarks.readonly", bookmarkFile.getName()).withStyle(ChatFormatting.RED),
+                    false);
+        }
     }
 
     /**

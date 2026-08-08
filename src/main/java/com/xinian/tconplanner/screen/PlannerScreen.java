@@ -146,6 +146,10 @@ public class PlannerScreen extends Screen {
         modPanelWidth = Mth.clamp(width - LEFT_COLUMN - guiWidth - 8, ModifierPanel.NARROW_WIDTH, ModifierPanel.WIDTH);
         int cluster = LEFT_COLUMN + guiWidth + modPanelWidth;
         left = Math.max(LEFT_COLUMN, (width - cluster) / 2 + LEFT_COLUMN);
+        //Below the ~394px the cluster needs, something has to be clipped. Clip the left tool column,
+        //which is a scrollable list, rather than the modifier panel - its +/-, reorder and remove hit
+        //boxes are all anchored to the right edge and would be entirely off-screen and unclickable.
+        left = Math.min(left, Math.max(0, width - guiWidth - modPanelWidth));
         top = Math.max(0, height / 2 - guiHeight / 2);
         refresh();
     }
@@ -292,6 +296,19 @@ public class PlannerScreen extends Screen {
     public void setPart(IMaterial material) {
         blueprint.materials[selectedPart] = material;
         refresh();
+    }
+
+    /**
+     * At most one search box owns the keyboard. Both flags are cleared before dispatch; whichever box
+     * the click lands in re-sets its own, and the panels' {@code setFocused} overrides follow the flag.
+     * Doing the clearing here rather than in each panel matters because the dispatcher stops at the
+     * first panel that consumes the click, so a panel that is never reached cannot clear itself.
+     */
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        materialSearchFocused = false;
+        modifierSearchFocused = false;
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override

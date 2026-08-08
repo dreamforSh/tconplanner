@@ -250,29 +250,29 @@ public class ModifierPanel extends PlannerPanel {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        //Only ever SETS the flag; PlannerScreen.mouseClicked clears both flags before dispatch, so a
+        //click that lands anywhere else already took the keyboard away
         if (searchBox.mouseClicked(mouseX, mouseY, button)) {
-            searchBox.setFocused(true);
             parent.modifierSearchFocused = true;
+            searchBox.setFocused(true);
             return true;
-        }
-        if (searchBox.isFocused()) {
-            searchBox.setFocused(false);
-            parent.modifierSearchFocused = false;
         }
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
     /**
-     * When the screen hands focus to another panel it calls this with false; without cascading that to
-     * the search box, both search boxes would draw a caret and both would claim the keyboard.
+     * Drives the search box from {@code parent.modifierSearchFocused} on BOTH edges.
+     * <p>
+     * {@code AbstractContainerEventHandler.setFocused} always calls {@code setFocused(false)} on the
+     * outgoing listener before {@code setFocused(true)} on the incoming one, and the screen re-issues
+     * that pair even when the incoming panel is the one already focused. Clearing the box on the false
+     * edge alone therefore unfocused it during the very handoff meant to keep it - the search accepted
+     * exactly one character and then went deaf, and clicking it again did not recover.
      */
     @Override
     public void setFocused(boolean focused) {
         super.setFocused(focused);
-        if (!focused) {
-            searchBox.setFocused(false);
-            parent.modifierSearchFocused = false;
-        }
+        searchBox.setFocused(focused && parent.modifierSearchFocused);
     }
 
     @Override

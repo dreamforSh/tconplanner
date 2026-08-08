@@ -124,30 +124,20 @@ public class MaterialSelectPanel extends PlannerPanel{
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         //如果点击了搜索框，就把焦点给它，并返回true
+        //Only ever SETS the flag; PlannerScreen.mouseClicked clears both before dispatch
         if (searchBox.mouseClicked(mouseX, mouseY, button)) {
-            searchBox.setFocused(true);
             parent.materialSearchFocused = true;
+            searchBox.setFocused(true);
             return true;
-        }
-        //Clicking anywhere else gives the keyboard back, so the two search boxes cannot both hold it
-        if (searchBox.isFocused()) {
-            searchBox.setFocused(false);
-            parent.materialSearchFocused = false;
         }
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    /**
-     * When the screen hands focus to another panel it calls this with false; without cascading that to
-     * the search box, both search boxes would draw a caret and both would claim the keyboard.
-     */
+    /** Flag-driven on both edges, for the reason spelled out in {@code ModifierPanel.setFocused} */
     @Override
     public void setFocused(boolean focused) {
         super.setFocused(focused);
-        if (!focused) {
-            searchBox.setFocused(false);
-            parent.materialSearchFocused = false;
-        }
+        searchBox.setFocused(focused && parent.materialSearchFocused);
     }
 
     @Override

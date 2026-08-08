@@ -11,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import slimeknights.tconstruct.library.materials.MaterialRegistry;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
 import slimeknights.tconstruct.library.materials.definition.MaterialId;
+import slimeknights.tconstruct.library.modifiers.ModifierId;
 
 import javax.annotation.Nullable;
 import slimeknights.tconstruct.library.materials.stats.MaterialStatsId;
@@ -128,7 +129,7 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
 
         ToolStack stack = buildBase();
         if (applyMods && !modStack.isEmpty()) {
-            List<ModifierStep> steps = replay(stack, modStack);
+            List<ModifierStep> steps = replay(stack, modStack, false);
             stack = steps.get(steps.size() - 1).tool();
         }
         stack.rebuildStats();
@@ -151,7 +152,7 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
     /** Replays {@code order} against this blueprint's parts, one step per applied modifier level */
     public List<ModifierStep> replayModifiers(ModifierStack order) {
         if (!isComplete()) return List.of();
-        return replay(buildBase(), order);
+        return replay(buildBase(), order, false);
     }
 
     /**
@@ -161,14 +162,17 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
      * {@link ModifierInfo} caches {@code recipe.getSlots()} once, but for a multi-level recipe that is
      * only ever <em>level one's</em> cost - {@code MultilevelModifierRecipe} passes {@code levels.get(0)}
      * to its superclass while charging {@code LevelEntry.find(levels, newLevel).slots()} at craft time.
-     * So {@code returning} (level 1 = one ability slot, levels 2-4 = one upgrade slot each) and the two
-     * {@code leaping} recipes were billed the wrong amount, of the wrong type, for every level past the
-     * first. Taking the recipe's own result also keeps incremental and third-party recipe types correct.
+     * So {@code returning} (level 1 = one ability slot, levels 2-4 = one upgrade slot each) was billed
+     * the wrong amount, of the wrong type, for every level past the first. Taking the recipe's own
+     * result also keeps third-party recipe types correct for free.
      * <p>
      * A step the recipe refuses is still force-applied, so the preview keeps showing what the player
      * built rather than collapsing; the error rides along so the UI can mark the exact failing step.
+     *
+     * @param stopOnError stop after the first refused step. Callers that only need a verdict pass true;
+     *                    callers that render a snapshot per step need every step and pass false.
      */
-    private static List<ModifierStep> replay(ToolStack base, ModifierStack order) {
+    private static List<ModifierStep> replay(ToolStack base, ModifierStack order, boolean stopOnError) {
         List<ModifierStep> steps = new ArrayList<>();
         Minecraft minecraft = Minecraft.getInstance();
         RegistryAccess access = minecraft.level == null ? null : minecraft.level.registryAccess();
@@ -186,16 +190,27 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
                     next = result.getResult().getTool();
                 }
             }
+            ModifierId id = info.modifier.getId();
             if (next == null) {
                 next = stack.copy();
-                next.addModifier(info.modifier.getId(), 1);
+                next.addModifier(id, 1);
                 if (info.count != null) {
                     next.getPersistentData().addSlots(info.count.type(), -info.count.count());
                 }
+            } else if (next.getUpgrades().getLevel(id) <= stack.getUpgrades().getLevel(id)) {
+                //An incremental recipe spends the slot but adds the modifier through
+                //addModifierAmount(id, availableAmount, neededPerLevel), and availableAmount comes from
+                //the container's inputs. DummyTinkersStationInventory reports none, so the amount is 0
+                //and addModifierAmount returns immediately - the slot is charged and the modifier never
+                //appears. Force the level here, keeping the recipe's own (correct, per-level) slot
+                //accounting. 46 incremental_modifier and 2 multilevel_incremental_modifier recipes ship
+                //with Tinkers, so this covers a large slice of the modifier list.
+                next.addModifier(id, 1);
             }
             next.rebuildStats();
             steps.add(new ModifierStep(info, next, error));
             stack = next;
+            if (stopOnError && error != null) break;
         }
         return steps;
     }
@@ -241,7 +256,9 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
     public RecipeResult<ItemStack> validateWith(ModifierStack order) {
         if (!isComplete()) return RecipeResult.pass();
         ToolStack stack = buildBase();
-        List<ModifierStep> steps = replay(stack, order);
+        //Only the verdict matters here, so stop at the first refusal - MaterialSelectPanel validates
+        //once per material tile and would otherwise keep replaying steps that can no longer succeed
+        List<ModifierStep> steps = replay(stack, order, true);
         for (ModifierStep step : steps) {
             if (step.error() != null) return RecipeResult.failure(step.error());
         }
