@@ -69,7 +69,10 @@ public class BlueprintTopPanel extends PlannerPanel{
         RenderSystem.enableBlend();
         RenderSystem.disableDepthTest();
         graphics.blit(PlannerScreen.TEXTURE, x + boxX, y + boxY, boxX, boxY, boxL, boxL);
-        
+        //The blit above leaves the shader colour at alpha 0.5/0.75; without resetting it the 3.7x tool
+        //preview and every widget drawn afterwards render washed out
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+
         int toolX = x + TCSlotPos.partsOffsetX + 7;
         int toolY = y + TCSlotPos.partsOffsetY + 22;
         PoseStack poseStack = graphics.pose();

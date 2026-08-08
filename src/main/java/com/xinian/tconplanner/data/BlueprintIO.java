@@ -17,6 +17,8 @@ public class BlueprintIO {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int CODE_LENGTH = 16;
+    /** A real blueprint encodes to a few hundred bytes; anything far past that is not one */
+    private static final int MAX_CODE_BYTES = 64 * 1024;
     
     private static final Map<String, String> codeCache = new HashMap<>();
     private static File codeStoreFile;
@@ -62,34 +64,34 @@ public class BlueprintIO {
         return code.toString();
     }
 
-    public static String exportToShortCode(BaseBlueprint<?> blueprint) {
-        if (blueprint == null || !blueprint.isComplete()) {
-            return null;
-        }
-        String fullCode = blueprintToCode(blueprint);
-        if (fullCode == null) {
-            return null;
-        }
-        String shortCode = generateCode();
-        codeCache.put(shortCode, fullCode);
-        saveCodeStore();
-        return shortCode;
+    /**
+     * The portable code for a blueprint - the thing you can actually hand to someone else.
+     * <p>
+     * This used to mint a random 16-character handle and keep the real payload in a local
+     * {@code codes.dat}, so the exported "code" resolved on the machine that made it and nowhere else.
+     * Sharing one was the entire point of the feature. The short-code table is still read on import so
+     * codes minted by older builds keep working.
+     */
+    public static String exportToCode(BaseBlueprint<?> blueprint) {
+        return blueprintToCode(blueprint);
     }
 
     public static BaseBlueprint<?> importFromCode(String code) {
-        if (code == null || code.isEmpty()) {
+        if (code == null) {
             return null;
         }
-        code = code.trim().toUpperCase();
-        
-        // 如果是16位短码，从缓存查找
-        if (code.length() == CODE_LENGTH && codeCache.containsKey(code)) {
-            String fullCode = codeCache.get(code);
-            return codeToBlueprint(fullCode);
+        String trimmed = code.trim();
+        if (trimmed.isEmpty()) {
+            return null;
         }
-        
-        // 否则尝试直接解码
-        return codeToBlueprint(code);
+        //Short codes come from an upper-case alphabet, so only normalise when testing for one. Doing it
+        //unconditionally mangled every full Base64 code, which is mixed case - meaning the direct-decode
+        //path below could never once have succeeded.
+        String shortCode = trimmed.toUpperCase(Locale.ROOT);
+        if (shortCode.length() == CODE_LENGTH && codeCache.containsKey(shortCode)) {
+            return codeToBlueprint(codeCache.get(shortCode));
+        }
+        return codeToBlueprint(trimmed);
     }
 
     public static String blueprintToCode(BaseBlueprint<?> blueprint) {
@@ -116,9 +118,14 @@ public class BlueprintIO {
         }
         try {
             byte[] bytes = Base64.getDecoder().decode(code);
+            //Pasted from the clipboard, so it is arbitrary input; a real blueprint is a few hundred bytes
+            if (bytes.length > MAX_CODE_BYTES) {
+                TConPlanner.LOGGER.warn("Ignoring blueprint code: {} bytes exceeds the {} byte limit", bytes.length, MAX_CODE_BYTES);
+                return null;
+            }
             ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
             CompoundTag data = NbtIo.readCompressed(bais);
-            
+
             if (data.contains("blueprint")) {
                 CompoundTag bpTag = data.getCompound("blueprint");
                 return deserializeBlueprint(bpTag);
@@ -135,19 +142,24 @@ public class BlueprintIO {
             return result;
         }
         
-        // 先尝试作为短码查找
-        code = code.trim().toUpperCase();
-        if (code.length() == CODE_LENGTH && codeCache.containsKey(code)) {
-            BaseBlueprint<?> bp = codeToBlueprint(codeCache.get(code));
+        // 先尝试作为短码查找（只对短码做大写归一化，见 importFromCode）
+        code = code.trim();
+        String shortCode = code.toUpperCase(Locale.ROOT);
+        if (shortCode.length() == CODE_LENGTH && codeCache.containsKey(shortCode)) {
+            BaseBlueprint<?> bp = codeToBlueprint(codeCache.get(shortCode));
             if (bp != null) {
                 result.add(bp);
             }
             return result;
         }
-        
+
         // 尝试作为完整代码解码
         try {
             byte[] bytes = Base64.getDecoder().decode(code);
+            if (bytes.length > MAX_CODE_BYTES) {
+                TConPlanner.LOGGER.warn("Ignoring blueprint code: {} bytes exceeds the {} byte limit", bytes.length, MAX_CODE_BYTES);
+                return result;
+            }
             ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
             CompoundTag data = NbtIo.readCompressed(bais);
             

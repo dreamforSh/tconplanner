@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -15,11 +16,14 @@ import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import com.xinian.tconplanner.api.TCArmor;
+import com.xinian.tconplanner.api.TCTool;
 import com.xinian.tconplanner.data.Blueprint;
 import com.xinian.tconplanner.data.BaseBlueprint;
 import com.xinian.tconplanner.data.PlannerData;
@@ -85,6 +89,9 @@ public class EventListener {
     @SubscribeEvent
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut e) {
         PlannerScreen.clearRecipeCache();
+        //Both lists are built from datapack-driven registries, so they belong to the world being left
+        TCTool.invalidate();
+        TCArmor.invalidate();
         layout = null;
         starredLayout = false;
         starredButton = null;
@@ -111,7 +118,12 @@ public class EventListener {
 
             e.addListener(new ExtIconButton(x, y, plannerIcon, TranslationUtil.createComponent("plannerbutton"), action -> mc.setScreen(new PlannerScreen(screen)), screen));
 
-            Block stationBlock = Objects.requireNonNull(screen.getTileEntity()).getBlockState().getBlock();
+            //getTileEntity() is @Nullable in Tinkers and genuinely returns null - the block entity is not
+            //resolved yet on the first init after joining, and is gone if the table is broken while open.
+            //requireNonNull here crashed the client; instanceof on null is already false, so a null block
+            //entity simply falls back to the tinker-station offsets.
+            BlockEntity stationEntity = screen.getTileEntity();
+            Block stationBlock = stationEntity == null ? null : stationEntity.getBlockState().getBlock();
             boolean isAnvil = stationBlock instanceof ScorchedAnvilBlock || stationBlock instanceof TinkersAnvilBlock;
             int importX = screen.cornerX, importY = screen.cornerY;
             importX += (isAnvil ? Config.CONFIG.importButtonXAnvil : Config.CONFIG.importButtonXStation).get();
@@ -127,7 +139,10 @@ public class EventListener {
                 Slot slot = screen.getMenu().getSlot(0);
                 return !slot.getItem().isEmpty() && ToolStack.isInitialized(slot.getItem());
             }));
-            if (data.starred != null) {
+            //Only tool blueprints have a parts-to-slots path (see movePartsToSlots and updateLayout, both
+            //of which already gate on Blueprint). A starred ARMOUR blueprint used to add a button that
+            //rendered, swallowed clicks and did nothing at all.
+            if (data.starred instanceof Blueprint) {
                 List<Component> tooltip = new ArrayList<>();
                 tooltip.add(Component.literal("---------").withStyle(ChatFormatting.GRAY)); // <<-- 变更点 3
                 tooltip.add(TranslationUtil.createComponent("star.move").withStyle(ChatFormatting.GOLD));
@@ -141,7 +156,8 @@ public class EventListener {
                         try {
                             data.save();
                         } catch (IOException ex) {
-                            throw new RuntimeException(ex);
+                            //Rethrowing from a button handler took the whole client down over a failed write
+                            TConPlanner.LOGGER.error("Failed to save planner data after un-starring", ex);
                         }
                     }else{
                         if (data.starred instanceof Blueprint toolBlueprint) {
@@ -175,9 +191,11 @@ public class EventListener {
                         ms.fillGradient(slotX, slotY, slotX + 16, slotY + 16, color, color);
                         poseStack.popPose();
                     } else if (!material.equals(part.getMaterial(stack).getId())) {
+                        //Unlike the empty-slot branch there IS an item in this slot, drawn at z=250, so a
+                        //plain fillGradient at z=101 was depth-rejected and the "wrong part" warning only
+                        //showed as a faint fringe. guiOverlay has no depth test, so it lands on top.
                         poseStack.pushPose();
-                        poseStack.translate(0, 0, 101);
-                        ms.fillGradient(slotX, slotY, slotX + 16, slotY + 16, 0x7aff0000, 0x7aff0000);
+                        ms.fillGradient(RenderType.guiOverlay(), slotX, slotY, slotX + 16, slotY + 16, 0x7aff0000, 0x7aff0000, 0);
                         poseStack.popPose();
                     }
                 }

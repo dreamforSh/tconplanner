@@ -44,7 +44,9 @@ public class ToolPartButton extends Button {
         poseStack.translate(0, 0, 200);
         parent.blit(graphics, x - 1, y - 1, 176 + (material == null ? 18 : 0), 41 + (selected ? 18 : 0), 18, 18);
         poseStack.popPose();
-        
+        //The plate is blitted at alpha 0.7; the part icon below must not inherit that
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+
         poseStack.pushPose();
         poseStack.translate(0, 0, 201);
         graphics.renderItem(this.stack, x, y);

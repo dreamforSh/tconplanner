@@ -7,11 +7,10 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Button.CreateNarration;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import com.xinian.tconplanner.EventListener;
+import com.xinian.tconplanner.screen.PlannerScreen;
 import com.xinian.tconplanner.screen.buttons.BookmarkedButton;
 import org.jetbrains.annotations.NotNull;
 
@@ -22,7 +21,17 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ExtItemStackButton extends Button {
-    public static ResourceLocation BACKGROUND = new ResourceLocation("tconstruct", "textures/gui/tinker_station.png");
+
+    /**
+     * The planner's own 18x18 slot frame; v=41 is the resting frame, v=59 the highlighted one.
+     * <p>
+     * This used to blit {@code tconstruct:textures/gui/tinker_station.png}, which does not exist in
+     * Tinkers 3.11 - the jar only ships {@code gui/jei/tinker_station.png} - so the button rendered as
+     * the missing-texture magenta, masked in the resting state by an opaque beige fill.
+     */
+    private static final int PLATE_U = 213;
+    private static final int PLATE_V = 41;
+    private static final int PLATE_V_HOVER = 59;
 
     private final ItemStack stack;
     private final Screen screen;
@@ -40,12 +49,9 @@ public class ExtItemStackButton extends Button {
     @Override
     public void renderWidget(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         Minecraft mc = Minecraft.getInstance();
-        RenderSystem.setShader(GameRenderer::getPositionTexShader);
-        RenderSystem.setShaderTexture(0, BACKGROUND);
-        graphics.blit(BACKGROUND, x - 1, y - 1, 194, 0, 18, 18);
-        if(!isHoveredOrFocused()){
-            graphics.fill(x, y, x + 16, y + 16, 0xff_a29b81);
-        }
+        PlannerScreen.bindTexture();
+        RenderSystem.enableBlend();
+        graphics.blit(PlannerScreen.TEXTURE, x - 1, y - 1, PLATE_U, isHoveredOrFocused() ? PLATE_V_HOVER : PLATE_V, 18, 18);
         graphics.renderItem(stack, x, y);
         graphics.pose().pushPose();
         RenderSystem.enableBlend();

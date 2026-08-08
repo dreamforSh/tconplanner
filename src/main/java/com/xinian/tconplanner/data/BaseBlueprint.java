@@ -41,6 +41,11 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
 
     public ModifierStack modStack = new ModifierStack();
 
+    @Nullable
+    private ItemStack cachedOutput;
+    @Nullable
+    private CompoundTag cachedOutputSignature;
+
     public BaseBlueprint(T plannable) {
         this.plannable = plannable;
         this.toolItem = plannable.getModifiable();
@@ -51,6 +56,22 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
 
         MaterialStatsId[] requiredStats = statList.toArray(new MaterialStatsId[0]);
         this.materials = new IMaterial[requiredStats.length];
+    }
+
+    /**
+     * Whether the planner can represent a tool definition at all.
+     * <p>
+     * {@code toolParts} comes from {@link ToolPartsHook} and {@code materials} from
+     * {@link ToolMaterialHook}; every screen that walks them assumes the two are the same length.
+     * Nothing in Tinkers guarantees that - a definition with a {@code material_stats} module but no
+     * {@code part_stats} module has zero parts and a non-zero material count, and {@code ToolPartsHook}
+     * defaults to an empty list. Tinkers' own travelers_* and slime_* armour is exactly that shape, and
+     * the only thing keeping it out of the planner was a hardcoded blacklist of eight item ids - which
+     * covered nothing any addon adds. Checking the shape instead covers all of them.
+     */
+    public static boolean isPlannable(ToolDefinition definition) {
+        int parts = ToolPartsHook.parts(definition).size();
+        return parts > 0 && parts == ToolMaterialHook.stats(definition).size();
     }
 
     /**
@@ -81,8 +102,25 @@ public abstract class BaseBlueprint<T extends IPlannable> implements Cloneable {
     /** One replayed modifier step: the tool it produced, and why the recipe refused it if it did */
     public record ModifierStep(ModifierInfo info, ToolStack tool, @Nullable Component error) {}
 
+    /**
+     * The finished tool, memoised against this blueprint's serialised state.
+     * <p>
+     * Building it is expensive - parts, {@code rebuildStats}, and one recipe validation per applied
+     * modifier - and it is called once per bookmark on every screen rebuild, plus several more times per
+     * refresh. The signature is the same {@code toNBT()} identity {@link #equals} uses, so any edit to
+     * materials, modifiers or creative slots invalidates it, and a bookmark that never changes is built
+     * exactly once.
+     */
     public ItemStack createOutput() {
-        return createOutput(true);
+        CompoundTag signature = toNBT();
+        if (cachedOutput != null && signature.equals(cachedOutputSignature)) {
+            //Copy: callers hand this to renderers, tooltips and giveItemstack, which may mutate it
+            return cachedOutput.copy();
+        }
+        ItemStack built = createOutput(true);
+        cachedOutputSignature = signature;
+        cachedOutput = built;
+        return built.copy();
     }
 
     public ItemStack createOutput(boolean applyMods) {

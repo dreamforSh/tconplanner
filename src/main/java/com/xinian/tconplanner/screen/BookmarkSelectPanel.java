@@ -55,14 +55,15 @@ public class BookmarkSelectPanel extends PlannerPanel {
 
     private static void exportCurrent(PlannerScreen parent) {
         BaseBlueprint<?> blueprint = parent.blueprint;
-        String shortCode = blueprint != null && blueprint.isComplete() ? BlueprintIO.exportToShortCode(blueprint) : null;
-        if (shortCode == null) {
+        String code = blueprint != null && blueprint.isComplete() ? BlueprintIO.exportToCode(blueprint) : null;
+        if (code == null) {
             //Every failure path here used to be an empty if, so a failed export looked identical to no click
             tell(TranslationUtil.createComponent("export.fail").withStyle(ChatFormatting.RED));
             return;
         }
-        Minecraft.getInstance().keyboardHandler.setClipboard(shortCode);
-        tell(TranslationUtil.createComponent("export.success", shortCode));
+        Minecraft.getInstance().keyboardHandler.setClipboard(code);
+        //The code is now the full portable payload, so it goes to the clipboard and not into chat
+        tell(TranslationUtil.createComponent("export.success"));
     }
 
     private static void importFromClipboard(PlannerData data, PlannerScreen parent) {

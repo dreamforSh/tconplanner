@@ -7,6 +7,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Button.CreateNarration;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
@@ -60,14 +61,17 @@ public class MaterialButton extends Button {
         graphics.renderItem(this.stack, x, y);
         int right = x + width;
         int bottom = y + height;
+        //guiOverlay, not the plain fill: renderItem draws at z=150 and writes depth, so a default fill
+        //at z=0 is depth-rejected exactly over the icon - the tint only survived in the sprite's
+        //transparent margin, which is why selection and error highlights looked punched out
         if (selected) {
-            graphics.fill(x, y, right, bottom, 0x55_00_ff_00);
+            graphics.fill(RenderType.guiOverlay(), x, y, right, bottom, 0x55_00_ff_00);
         }
         if (errorText != null) {
-            graphics.fill(x, y, right, bottom, 0x55_ff_00_00);
+            graphics.fill(RenderType.guiOverlay(), x, y, right, bottom, 0x55_ff_00_00);
         }
         if (isHovered) {
-            graphics.fill(x, y, right, bottom, 0x80_ffea00);
+            graphics.fill(RenderType.guiOverlay(), x, y, right, bottom, 0x80_ffea00);
             renderToolTip(graphics, mouseX, mouseY);
         }
     }

@@ -63,7 +63,7 @@
   "gui.tconplanner.export.current": "导出",
   "gui.tconplanner.export.all": "导出全部",
   "gui.tconplanner.import": "导入",
-  "gui.tconplanner.export.success": "蓝图码: %s",
+  "gui.tconplanner.export.success": "蓝图码已复制到剪贴板",
   "gui.tconplanner.export.fail": "导出失败",
   "gui.tconplanner.import.success": "成功导入",
   "gui.tconplanner.import.fail": "导入失败",

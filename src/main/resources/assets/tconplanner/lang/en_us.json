@@ -63,7 +63,7 @@
   "gui.tconplanner.export.current": "Export",
   "gui.tconplanner.export.all": "Export All",
   "gui.tconplanner.import": "Import",
-  "gui.tconplanner.export.success": "Blueprint code: %s",
+  "gui.tconplanner.export.success": "Blueprint code copied to clipboard",
   "gui.tconplanner.export.fail": "Export failed",
   "gui.tconplanner.import.success": "Imported successfully",
   "gui.tconplanner.import.fail": "Import failed",

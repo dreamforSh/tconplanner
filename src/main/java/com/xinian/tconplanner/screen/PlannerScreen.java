@@ -103,15 +103,34 @@ public class PlannerScreen extends Screen {
 
     public PlannerScreen(TinkerStationScreen child, ToolStack stack) {
         this(child);
-        this.currentMode = PlannerMode.TOOLS;
-        Optional<TCTool> optionalTCTool = TCTool.getTools().stream().filter(tool -> tool.getModifiable().getToolDefinition().getId().equals(stack.getDefinition().getId())).findAny();
-        if (optionalTCTool.isPresent()) {
-            blueprint = new Blueprint(optionalTCTool.get());
-            for (int i = 0; i < blueprint.materials.length; i++) {
-                blueprint.materials[i] = stack.getMaterial(i).get();
-            }
-            selectedPart = -1;
+        ResourceLocation definition = stack.getDefinition().getId();
+
+        Optional<TCTool> tool = TCTool.getTools().stream()
+                .filter(t -> t.getToolDefinition().getId().equals(definition)).findAny();
+        if (tool.isPresent()) {
+            currentMode = PlannerMode.TOOLS;
+            importInto(new Blueprint(tool.get()), stack);
+            return;
         }
+        //Armour is tinkered at the same station, so importing a piece used to search only the tool list
+        //and silently open an empty planner
+        Optional<TCArmor> armor = TCArmor.getArmors().stream()
+                .filter(a -> a.getToolDefinition().getId().equals(definition)).findAny();
+        if (armor.isPresent()) {
+            currentMode = PlannerMode.ARMORS;
+            importInto(new ArmorBlueprint(armor.get()), stack);
+        }
+    }
+
+    private void importInto(BaseBlueprint<?> imported, ToolStack stack) {
+        blueprint = imported;
+        for (int i = 0; i < imported.materials.length; i++) {
+            //getMaterial answers MaterialVariant.UNKNOWN past the end of the stack's material list;
+            //null leaves the part empty instead of pinning a placeholder material onto it
+            IMaterial material = stack.getMaterial(i).get();
+            imported.materials[i] = material == IMaterial.UNKNOWN ? null : material;
+        }
+        selectedPart = -1;
     }
 
     /** Width the tool/bookmark column occupies to the left of the main window, including its gap */
@@ -164,10 +183,11 @@ public class PlannerScreen extends Screen {
         }
 
 
-        if (!data.saved.isEmpty()) {
-            addRenderableWidget(new BookmarkSelectPanel(panelX, top + 22 + toolSpace * 3 + 23 + 4 + 4, panelWidth,
-                    BookmarkSelectPanel.HEIGHT, data, this));
-        }
+        //Shown even with no bookmarks: the Export/Import buttons live in this panel, and gating it on a
+        //non-empty list meant a player who had never bookmarked anything had no way to import a code -
+        //which is exactly the player someone would share a code with. It also keeps the layout stable.
+        addRenderableWidget(new BookmarkSelectPanel(panelX, top + 22 + toolSpace * 3 + 23 + 4 + 4, panelWidth,
+                BookmarkSelectPanel.HEIGHT, data, this));
 
         if (blueprint != null) {
             int topPanelSize = 115;
@@ -248,6 +268,10 @@ public class PlannerScreen extends Screen {
 
     public void setBlueprint(BaseBlueprint<?> bp) {
         blueprint = bp;
+        //Follow the blueprint. Loading an armour bookmark while the Tools tab was active left the mode
+        //buttons contradicting what was on screen, and clicking the highlighted one wiped the blueprint.
+        if (bp instanceof ArmorBlueprint) currentMode = PlannerMode.ARMORS;
+        else if (bp instanceof Blueprint) currentMode = PlannerMode.TOOLS;
         this.materialPage = 0;
         sorter = null;
         //A different tool has a different modifier list, so neither the query nor the cache carries over
@@ -363,33 +387,36 @@ public class PlannerScreen extends Screen {
         refresh();
     }
 
+    /**
+     * Rolls a new material for every part, and nothing else.
+     * <p>
+     * This used to build a brand new blueprint from the same tool and hand it to {@link #setBlueprint},
+     * which meant a button labelled "Randomize Materials" also threw away every modifier the player had
+     * applied and every creative slot they had granted, with no confirmation and no undo.
+     */
     public void randomize() {
         if (blueprint == null) {
             return;
         }
-        if (blueprint instanceof Blueprint toolBlueprint) {
-            setBlueprint(new Blueprint(toolBlueprint.plannable));
-        } else if (blueprint instanceof ArmorBlueprint armorBlueprint) {
-            setBlueprint(new ArmorBlueprint(armorBlueprint.plannable));
-        } else {
-            return;
-        }
-
         Random random = new Random();
         List<IToolPart> parts = ToolPartsHook.parts(blueprint.toolDefinition);
-        List<IMaterial> allMaterials = new ArrayList<>(MaterialRegistry.getMaterials());
-        for (int i = 0; i < parts.size(); i++) {
-            IToolPart part = parts.get(i);
+        List<IMaterial> allMaterials = MaterialRegistry.getMaterials().stream()
+                .filter(mat -> !mat.isHidden())
+                .toList();
 
+        int count = Math.min(parts.size(), blueprint.materials.length);
+        for (int i = 0; i < count; i++) {
+            IToolPart part = parts.get(i);
             List<IMaterial> usable = allMaterials.stream()
                     .filter(mat -> part.canUseMaterial(mat.getIdentifier()))
                     .toList();
-
             if (!usable.isEmpty()) {
-                this.blueprint.materials[i] = usable.get(random.nextInt(usable.size()));
+                blueprint.materials[i] = usable.get(random.nextInt(usable.size()));
             }
         }
 
+        //Materials changed, so every cached validation and preview is stale
+        modifierEvaluator.invalidate();
         refresh();
     }
 
@@ -468,11 +495,14 @@ public class PlannerScreen extends Screen {
 
         for (IDisplayModifierRecipe recipe : jeiRecipes) {
             if (recipe instanceof ITinkerStationRecipe stationRecipe) {
+                //Index every real recipe id, not just the ones that survive the display dedup below.
+                //Saved blueprints reference recipe ids, so indexing only the survivors meant a bookmark
+                //whose recipe lost the dedup could not be resolved and silently lost that modifier.
+                index.putIfAbsent(stationRecipe.getId(), recipe);
                 ModifierEntry result = recipe.getDisplayResult();
                 ModifierSignature signature = new ModifierSignature(result.getModifier(), recipe.getSlots(), result.getLevel());
                 if (seen.add(signature)) {
                     cleanedList.add(recipe);
-                    index.put(stationRecipe.getId(), recipe);
                 }
             }
         }
